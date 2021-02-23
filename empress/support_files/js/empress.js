@@ -372,6 +372,11 @@ define([
          * for clades in this array that share the same group membership.
          */
         this._group = new Array(this._tree.size + 1).fill(-1);
+
+        /**
+         *
+         */
+        this._recentCat = "";
     }
 
     /**
@@ -2202,10 +2207,16 @@ define([
         // assigns node in obs to groups in this._groups
         this.assignGroups(obs);
 
-        this._legend.enableUpdate();
-        this.updateLegend = this._updateLegendFromModel(obs);
+        if (cat !== this._recentCat) {
+            this._recentCat = cat;
+            this._legend.enableUpdate();
+            this.updateLegend = this._updateLegendFromModel(obs);
 
-        this.updateLegendCategorical(cat, keyInfo);
+            this.updateLegendCategorical(cat, keyInfo);
+        } else {
+            this.updateLegend()
+            console.log("Old Cat")
+        }
 
         return keyInfo;
     };
@@ -2306,6 +2317,9 @@ define([
         method,
         reverse = false
     ) {
+        console.log(this._recentCat, cat)
+        console.log(cat === this._recentCat)
+        console.log("New Cat")
         var fmInfo = this.getUniqueFeatureMetadataInfo(cat, method);
         var sortedUniqueValues = fmInfo.sortedUniqueValues;
         var uniqueValueToFeatures = fmInfo.uniqueValueToFeatures;
@@ -2339,11 +2353,16 @@ define([
         // assigns nodes in to a group in this._group array
         this.assignGroups(obs);
 
-        this._legend.enableUpdate();
-        this.updateLegend = this._updateLegendFromModel(obs);
+        if (cat !== this._recentCat) {
+            this._recentCat = cat;
+            this._legend.enableUpdate();
+            this.updateLegend = this._updateLegendFromModel(obs);
 
-        this.updateLegendCategorical(cat, keyInfo);
-
+            this.updateLegendCategorical(cat, keyInfo);
+        } else {
+            this.updateLegend()
+            console.log("Old Cat")
+        }
         return keyInfo;
     };
 
