@@ -2552,6 +2552,10 @@ define([
      * Clears the legend.
      */
     Empress.prototype.clearLegend = function () {
+        this._recentCat = "";
+        this._recentCol = "";
+        this._recentMet = "";
+        this._recentRev = "";
         this._legend.clear();
     };
 
