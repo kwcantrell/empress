@@ -294,6 +294,12 @@ select:-moz-focusring {
     height: 100vh;
 }
 
+div.colorbox {
+  border: 1px solid black;
+  height: 18px;
+  width: 18px;
+}
+
 /* This class is added to container and tree-container to keep empress on the
  * left-hand-side of the screen when combined with Emperor
  */

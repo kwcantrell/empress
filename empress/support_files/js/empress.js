@@ -377,6 +377,14 @@ define([
          *
          */
         this._recentCat = "";
+
+        /**
+         *
+         */
+        this._recentCol = "";
+
+        this._recentMet = "";
+        this._recentRev = "";
     }
 
     /**
@@ -2207,15 +2215,18 @@ define([
         // assigns node in obs to groups in this._groups
         this.assignGroups(obs);
 
-        if (cat !== this._recentCat) {
+        if (cat !== this._recentCat ||
+            color !== this._recentCol ||
+            reverse !== this._recentRev) {
             this._recentCat = cat;
+            this._recentCol = color;
+            this._recentRev = reverse;
             this._legend.enableUpdate();
             this.updateLegend = this._updateLegendFromModel(obs);
 
             this.updateLegendCategorical(cat, keyInfo);
         } else {
             this.updateLegend()
-            console.log("Old Cat")
         }
 
         return keyInfo;
@@ -2317,9 +2328,6 @@ define([
         method,
         reverse = false
     ) {
-        console.log(this._recentCat, cat)
-        console.log(cat === this._recentCat)
-        console.log("New Cat")
         var fmInfo = this.getUniqueFeatureMetadataInfo(cat, method);
         var sortedUniqueValues = fmInfo.sortedUniqueValues;
         var uniqueValueToFeatures = fmInfo.uniqueValueToFeatures;
@@ -2353,15 +2361,20 @@ define([
         // assigns nodes in to a group in this._group array
         this.assignGroups(obs);
 
-        if (cat !== this._recentCat) {
+        if (cat !== this._recentCat ||
+            color !== this._recentCol ||
+            method !== this._recentMet ||
+            reverse !== this._recentRev) {
             this._recentCat = cat;
+            this._recentCol = color;
+            this._recentMet = method;
+            this._recentRev = reverse;
             this._legend.enableUpdate();
             this.updateLegend = this._updateLegendFromModel(obs);
 
             this.updateLegendCategorical(cat, keyInfo);
         } else {
             this.updateLegend()
-            console.log("Old Cat")
         }
         return keyInfo;
     };
