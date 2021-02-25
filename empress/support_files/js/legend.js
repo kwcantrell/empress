@@ -467,6 +467,7 @@ define(["jquery", "underscore", "util", "spectrum"], function (
             colorCell.classList.add("frozen-cell");
             colorCell.setAttribute("style", "background: " + info[key] + ";");
             colorCell.onclick = () => {
+                colorCell.onclick = () => {};
                 if (scope.updateEnabled) {
                     var editor = new ColorEditor({
                         container: colorCell,
