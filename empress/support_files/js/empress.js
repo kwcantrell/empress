@@ -3649,6 +3649,7 @@ define([
             });
             
         })});
+    };
 
     /**
      * This will shear/unshear
