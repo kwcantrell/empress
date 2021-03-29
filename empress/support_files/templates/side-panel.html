@@ -257,6 +257,34 @@
   </div>
 </div>
 
+<!-- Shear options -->
+<button id="shearOpenButton" class="side-header collapsible needs-metadata">
+    Shear Tree</button>
+<div class="side-content control" id="shear-div">
+  <p class="side-panel-notes">
+    Shear tree using feature metadata
+  </p>
+  <div id="shear-add-options">
+    <p>
+      <label for="shear-feature-select">Shear by...</label>
+      <label class="select-container">
+        <select id="shear-feature-select"></select>
+      </label>
+    </p>
+    <p>
+      <label for="shear-add-btn">Add shear layer</label>
+      <button id="shear-add-btn">+</button>
+    </p>
+  </div>
+  <div id="shear-available-content">
+    <div id="shear-layer-container">
+      <hr />
+    </div>
+    <div id="shear-legends">
+    </div>
+  </div>
+</div>
+
 <!-- animate Options -->
 <button id="animationOpenButton" class="side-header collapsible hidden">
     Animation</button>
@@ -420,17 +448,18 @@
     <label for="display-nodes-select">Show node circles?</label>
     <label class="select-container">
       <select id="display-nodes-select">
+        <option value=2>Hide all node circles</option>
+        <option value=3 selected>
+            Show node circles for internal nodes with only one child
+        </option>
         <option value=0>Show internal node circles</option>
         <option value=1>Show all node circles</option>
-        <option value=2>Hide all node circles</option>
-        <option value=3 selected>Show node circles of internal nodes with only one 
-                        descendant
         </option>
       </select>
     </label>
   </p>
   <p class="side-panel-notes indented">
-    If checked, this draws circles at all nodes' positions.
+    Controls behavior of when to draw circles at nodes' positions.
   </p>
   <hr />
   <p class="side-panel-inner-header">
