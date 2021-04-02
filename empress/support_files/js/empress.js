@@ -389,17 +389,24 @@ define([
             branchMethod,
             this._tree.getTree()
         );
+        var dataForOnlyRoot = function (coordKeys) {
+            var rootCoordData = {};
+            _.each(coordKeys, function (key) {
+                rootCoordData[key] = [null, 0];
+            });
+            return rootCoordData;
+        };
         // Rectangular
         if (this._currentLayout === "Rectangular") {
             // tree is just root
             if (this._tree.currentSize == 1) {
-                data = {
-                    xCoord: [null, 0],
-                    yCoord: [null, 0],
-                    highestChildYr: [null, 0],
-                    lowestChildYr: [null, 0],
-                    yScalingFactor: [null, 0],
-                };
+                data = dataForOnlyRoot([
+                    "xCoord",
+                    "yCoord",
+                    "highestChildYr",
+                    "lowestChildYr",
+                    "yScalingFactor",
+                ]);
             } else {
                 data = LayoutsUtil.rectangularLayout(
                     this._tree.getTree(),
@@ -433,18 +440,17 @@ define([
             }
         } else if (this._currentLayout === "Circular") {
             if (this._tree.currentSize == 1) {
-                data = {
-                    // store new layout information
-                    x0: [null, 0],
-                    y0: [null, 0],
-                    x1: [null, 0],
-                    y1: [null, 0],
-                    angle: [null, 0],
-                    arcx0: [null, 0],
-                    arcy0: [null, 0],
-                    arcStartAngle: [null, 0],
-                    arcEndAngle: [null, 0],
-                };
+                data = dataForOnlyRoot([
+                    "x0",
+                    "y0",
+                    "x1",
+                    "y1",
+                    "angle",
+                    "arcx0",
+                    "arcy0",
+                    "arcStartAngle",
+                    "arcEndAngle",
+                ]);
             } else {
                 data = LayoutsUtil.circularLayout(
                     this._tree.getTree(),
@@ -476,11 +482,7 @@ define([
             }
         } else {
             if (this._tree.currentSize == 1) {
-                data = {
-                    // store new layout information
-                    xCoord: [null, 0],
-                    yCoord: [null, 0],
-                };
+                data = dataForOnlyRoot(["xCoord", "yCoord"]);
             } else {
                 data = LayoutsUtil.unrootedLayout(
                     this._tree.getTree(),
@@ -930,7 +932,6 @@ define([
         } else {
             throw new Error("getNodeCoords() drawNodeCircles is out of range");
         }
-
         for (var node of this._tree.postorderTraversal((includeRoot = true))) {
             if (!comp(node)) {
                 continue;
@@ -1729,6 +1730,12 @@ define([
         // Do most of the hard work: compute the frequencies for each tip (only
         // the tips present in the BIOM table, that is)
         var feature2freqs = this._biom.getFrequencyMap(layer.colorBySMField);
+        // var nodes = new Set([...this._tree.postorderTraversal()]);
+        // _.each(feature2freqs, function (blah, node) {
+        //     if (!nodes.has(parseInt(node))) {
+        //         delete feature2freqs[node];
+        //     }
+        // });
 
         // Only bother computing the halfyrscf / halfAngleRange value we need.
         // (this._tree.numleaves() does iterate over the full tree, at least
@@ -2182,8 +2189,8 @@ define([
     Empress.prototype.getUniqueSampleMetadataInfo = function (cat) {
         var obs = this._biom.getObsBy(cat);
         var nodes = new Set([...this._tree.postorderTraversal()]);
-        _.each(obs, function (observations, key) {
-            obs[key] = observations.filter((x) => nodes.has(x));
+        _.each(obs, function (featuresWithSMValue, smValue) {
+            obs[smValue] = featuresWithSMValue.filter((x) => nodes.has(x));
         });
         return obs;
     };
@@ -2208,7 +2215,6 @@ define([
         reverse = false
     ) {
         var tree = this._tree;
-        // var obs = this._biom.getObsBy(cat);
         var obs = this.getUniqueSampleMetadataInfo(cat);
         var categories = Object.keys(obs);
 
@@ -2827,7 +2833,7 @@ define([
      */
     Empress.prototype.dontCollapseClade = function (clade) {
         var scope = this;
-        var nodes = this.getCladeNodes(parseInt(clade));
+        var nodes = this._tree.getCladeNodes(parseInt(clade));
         nodes.forEach(function (node) {
             scope._dontCollapse.add(node);
         });
@@ -3107,7 +3113,7 @@ define([
 
         // step 1: find all nodes in the clade.
         // Note: cladeNodes is an array of nodes arranged in postorder fashion
-        var cladeNodes = this.getCladeNodes(rootNode);
+        var cladeNodes = this._tree.getCladeNodes(rootNode);
 
         // use the left most child in the clade to initialize currentCladeInfo
         var currentCladeInfo = {
@@ -3203,44 +3209,6 @@ define([
             this.createCollapsedCladeShape(cladeRoot);
         }
         this.drawTree();
-    };
-
-    /**
-     * Returns all nodes in the clade whose root is node.
-     *
-     * Note: elements in the returned array are keys in this._treeData
-     *       also, the returned array is sorted in a postorder fashion
-     *
-     * @param {Number} cladeRoot The root of the clade. An error is thrown if
-     *                           cladeRoot is not a valid node.
-     *
-     * @return {Array} The nodes in the clade
-     */
-    Empress.prototype.getCladeNodes = function (cladeRoot) {
-        if (!this._treeData.hasOwnProperty(cladeRoot)) {
-            throw cladeRoot + " is not a valid node.";
-        }
-        // stores the clade nodes
-        var cladeNodes = [];
-
-        // Nodes in the clade are found by performing a postorder traversal
-        // starting at the left most child of the clade and ending on cladeRoot
-
-        // find left most child
-        // Note: initializing lchild as cladeRoot incase cladeRoot is a tip
-        var lchild = cladeRoot;
-        var fchild = this._tree.fchild(this._tree.postorderselect(cladeRoot));
-        while (fchild !== 0) {
-            lchild = this._tree.postorder(fchild);
-            fchild = this._tree.fchild(this._tree.postorderselect(lchild));
-        }
-
-        // perform post order traversal until cladeRoot is reached.
-        for (var i = lchild; i <= cladeRoot; i++) {
-            cladeNodes.push(i);
-        }
-
-        return cladeNodes;
     };
 
     /**
@@ -3418,7 +3386,7 @@ define([
         for (var clade in this._collapsedClades) {
             if (this._isPointInClade(clade, point)) {
                 var cladeNode = this._treeData[clade];
-                return clade;
+                return parseInt(clade);
             }
         }
         return -1;
@@ -3671,7 +3639,7 @@ define([
         });
 
         // remove removeNodes
-        var allNodes = Array.from(Array(this._tree.size + 1).keys());
+        var allNodes = _.range(1, this._tree.size + 1);
         allNodes.shift();
 
         allNodes = new Set(allNodes);
@@ -3684,6 +3652,8 @@ define([
             var name = this._tree.name(this._tree.postorderselect(node));
             keepNames.push(name);
         }
+
+        this._biom.setIngnoreNodes(new Set(removeNodes));
 
         this._tree.shear(new Set(keepNames));
         var nodeNames = this._tree.getAllNames();
