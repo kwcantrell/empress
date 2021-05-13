@@ -12,6 +12,7 @@ define([
     "LayoutsUtil",
     "ExportUtil",
     "TreeController",
+    "MetadataSearcher",
 ], function (
     _,
     Camera,
@@ -25,7 +26,8 @@ define([
     chroma,
     LayoutsUtil,
     ExportUtil,
-    TreeController
+    TreeController,
+    MetadataSearcher
 ) {
     /**
      * @class EmpressTree
@@ -203,7 +205,9 @@ define([
          */
         this._tipMetadata = tipMetadata;
         this._intMetadata = intMetadata;
-
+        this.metadataSearcher = new MetadataSearcher(this._featureMetadataColumns, this._tipMetadata);
+        this.metadataSearcher.registerObserver(this);
+        console.log(featureMetadataColumns, tipMetadata); 
         /**
          * @type{Object}
          * As described above, maps layout names to node coordinate suffixes
@@ -535,6 +539,8 @@ define([
 
         this.getLayoutInfo();
         this.centerLayoutAvgPoint();
+        this.metadataSearcher.searchMetadata("Level 2", "p__Crenarchaeota");
+
     };
 
     /**
@@ -1261,131 +1267,8 @@ define([
                 return;
             }
         }
-        // Scale the line width in such a way that trees with more leaves have
-        // "smaller" line width values than trees with less leaves. This is a
-        // pretty arbitrary equation based on messing around and seeing what
-        // looked nice on mid- and small-sized trees; as a TODO for the future,
-        // there is almost certainly a better way to do this.
-        var lwScaled =
-            (2 * lw) / Math.pow(Math.log10(this._tree.numleaves()), 2);
-        var tree = this._tree;
-
-        // the coordinates of the tree
-        var coords = [];
-        this._drawer.loadThickNodeBuff([]);
-
-        // define these variables so jslint does not complain
-        var x1, y1, x2, y2, corners;
-
-        // In the corner case where the root node (located at index tree.size)
-        // has an assigned color, thicken the root's drawn vertical line when
-        // drawing the tree in Rectangular layout mode
-        if (
-            this._currentLayout === "Rectangular" &&
-            this.getNodeInfo(tree.size, "isColored")
-        ) {
-            this._addThickVerticalLineCoords(coords, tree.size, lwScaled);
-        }
-        // iterate through the tree in postorder, skip root
-        for (var node of this._tree.postorderTraversal()) {
-            // name of current node
-            var parent = tree.postorder(
-                tree.parent(tree.postorderselect(node))
-            );
-
-            if (
-                this._collapsedClades.hasOwnProperty(node) ||
-                !this.getNodeInfo(node, "visible") ||
-                !this.getNodeInfo(node, "isColored")
-            ) {
-                continue;
-            }
-
-            var color = this.getNodeInfo(node, "color");
-            if (this._currentLayout === "Rectangular") {
-                // Draw a thick vertical line for this node, if it isn't a tip
-                if (this.getNodeInfo(node, "lowestchildyr") !== undefined) {
-                    this._addThickVerticalLineCoords(coords, node, lwScaled);
-                }
-                /* Draw a horizontal thick line for this node -- we can safely
-                 * do this for all nodes since this ignores the root, and all
-                 * nodes except for the root (at least as of writing) have a
-                 * horizontal line portion in the rectangular layout.
-                 * tL   tR---
-                 * -----|
-                 * bL   bR---
-                 */
-                corners = {
-                    tL: [this.getX(parent), this.getY(node) + lwScaled],
-                    tR: [this.getX(node), this.getY(node) + lwScaled],
-                    bL: [this.getX(parent), this.getY(node) - lwScaled],
-                    bR: [this.getX(node), this.getY(node) - lwScaled],
-                };
-                this._addTriangleCoords(coords, corners, color);
-            } else if (this._currentLayout === "Circular") {
-                // Thicken the "arc" if this is non-root internal node
-                // (TODO: this will need to be adapted when the arc is changed
-                // to be a bezier curve)
-                if (!this._tree.isleaf(this._tree.postorderselect(node))) {
-                    // An arc will be created for all internal nodes.
-                    // See getCoords() for details on how arcs are drawn.
-                    var arcDeltaAngle =
-                        this.getNodeInfo(node, "arcendangle") -
-                        this.getNodeInfo(node, "arcstartangle");
-                    var numSamples = this._numSampToApproximate(arcDeltaAngle);
-                    var sampleAngle = arcDeltaAngle / numSamples;
-                    var sX = this.getNodeInfo(node, "arcx0");
-                    var sY = this.getNodeInfo(node, "arcy0");
-                    for (var line = 0; line < numSamples; line++) {
-                        x1 =
-                            sX * Math.cos(line * sampleAngle) -
-                            sY * Math.sin(line * sampleAngle);
-                        y1 =
-                            sX * Math.sin(line * sampleAngle) +
-                            sY * Math.cos(line * sampleAngle);
-                        x2 =
-                            sX * Math.cos((line + 1) * sampleAngle) -
-                            sY * Math.sin((line + 1) * sampleAngle);
-                        y2 =
-                            sX * Math.sin((line + 1) * sampleAngle) +
-                            sY * Math.cos((line + 1) * sampleAngle);
-                        var arc0corners = VectorOps.computeBoxCorners(
-                            x1,
-                            y1,
-                            x2,
-                            y2,
-                            lwScaled
-                        );
-                        var arc1corners = VectorOps.computeBoxCorners(
-                            x1,
-                            y1,
-                            x2,
-                            y2,
-                            lwScaled
-                        );
-                        this._addTriangleCoords(coords, arc0corners, color);
-                        this._addTriangleCoords(coords, arc1corners, color);
-                    }
-                }
-                // Thicken the actual "node" portion, extending from the center
-                // of the layout
-                x1 = this.getNodeInfo(node, "xc0");
-                y1 = this.getNodeInfo(node, "yc0");
-                x2 = this.getX(node);
-                y2 = this.getY(node);
-                corners = VectorOps.computeBoxCorners(x1, y1, x2, y2, lwScaled);
-                this._addTriangleCoords(coords, corners, color);
-            } else {
-                x1 = this.getX(parent);
-                y1 = this.getY(parent);
-                x2 = this.getX(node);
-                y2 = this.getY(node);
-                corners = VectorOps.computeBoxCorners(x1, y1, x2, y2, lwScaled);
-                this._addTriangleCoords(coords, corners, color);
-            }
-        }
-
-        this._drawer.loadThickNodeBuff(coords);
+        this._thinkenNodes(this._tree.postorderTraversal(), lw);
+        return;
     };
 
     /**
@@ -3792,6 +3675,156 @@ define([
 
         this.redrawBarPlotsToMatchLayout();
     };
+
+    Empress.prototype._thinkenNodes = function(nodes, lw) {
+        console.log(nodes)
+        if (nodes === undefined) return;
+        /***************DO WE NEED THIS?********************/
+        // // In the corner case where the root node (located at index tree.size)
+        // // has an assigned color, thicken the root's drawn vertical line when
+        // // drawing the tree in Rectangular layout mode
+        // if (
+        //     this._currentLayout === "Rectangular" &&
+        //     this.getNodeInfo(tree.size, "isColored")
+        // ) {
+        //     this._addThickVerticalLineCoords(coords, tree.size, lwScaled);
+        // }
+        var lwScaled =
+            (2 * lw) / Math.pow(Math.log10(this._tree.numleaves()), 2);
+        var tree = this._tree;
+        // the coordinates of the tree
+        var coords = [];
+        this._drawer.loadThickNodeBuff([]);
+
+        // define these variables so jslint does not complain
+        var x1, y1, x2, y2, corners;
+
+        // In the corner case where the root node (located at index tree.size)
+        // has an assigned color, thicken the root's drawn vertical line when
+        // drawing the tree in Rectangular layout mode
+
+        // iterate through the tree in postorder, skip root
+        var root = tree.postorder(tree.root());
+        for (var node of nodes) {
+            if (node === root) continue;
+            // name of current node
+            var parent = tree.postorder(
+                tree.parent(tree.postorderselect(node))
+            );
+
+            // if (
+            //     this._collapsedClades.hasOwnProperty(node) ||
+            //     !this.getNodeInfo(node, "visible") ||
+            //     !this.getNodeInfo(node, "isColored")
+            // ) {
+            //     continue;
+            // }
+
+            var color = this.getNodeInfo(node, "color");
+            if (this._currentLayout === "Rectangular") {
+                // Draw a thick vertical line for this node, if it isn't a tip
+                if (this.getNodeInfo(node, "lowestchildyr") !== undefined) {
+                    this._addThickVerticalLineCoords(coords, node, lwScaled);
+                }
+                /* Draw a horizontal thick line for this node -- we can safely
+                 * do this for all nodes since this ignores the root, and all
+                 * nodes except for the root (at least as of writing) have a
+                 * horizontal line portion in the rectangular layout.
+                 * tL   tR---
+                 * -----|
+                 * bL   bR---
+                 */
+                corners = {
+                    tL: [this.getX(parent), this.getY(node) + lwScaled],
+                    tR: [this.getX(node), this.getY(node) + lwScaled],
+                    bL: [this.getX(parent), this.getY(node) - lwScaled],
+                    bR: [this.getX(node), this.getY(node) - lwScaled],
+                };
+                this._addTriangleCoords(coords, corners, color);
+            } else if (this._currentLayout === "Circular") {
+                // Thicken the "arc" if this is non-root internal node
+                // (TODO: this will need to be adapted when the arc is changed
+                // to be a bezier curve)
+                if (!this._tree.isleaf(this._tree.postorderselect(node))) {
+                    // An arc will be created for all internal nodes.
+                    // See getCoords() for details on how arcs are drawn.
+                    var arcDeltaAngle =
+                        this.getNodeInfo(node, "arcendangle") -
+                        this.getNodeInfo(node, "arcstartangle");
+                    var numSamples = this._numSampToApproximate(arcDeltaAngle);
+                    var sampleAngle = arcDeltaAngle / numSamples;
+                    var sX = this.getNodeInfo(node, "arcx0");
+                    var sY = this.getNodeInfo(node, "arcy0");
+                    for (var line = 0; line < numSamples; line++) {
+                        x1 =
+                            sX * Math.cos(line * sampleAngle) -
+                            sY * Math.sin(line * sampleAngle);
+                        y1 =
+                            sX * Math.sin(line * sampleAngle) +
+                            sY * Math.cos(line * sampleAngle);
+                        x2 =
+                            sX * Math.cos((line + 1) * sampleAngle) -
+                            sY * Math.sin((line + 1) * sampleAngle);
+                        y2 =
+                            sX * Math.sin((line + 1) * sampleAngle) +
+                            sY * Math.cos((line + 1) * sampleAngle);
+                        var arc0corners = VectorOps.computeBoxCorners(
+                            x1,
+                            y1,
+                            x2,
+                            y2,
+                            lwScaled
+                        );
+                        var arc1corners = VectorOps.computeBoxCorners(
+                            x1,
+                            y1,
+                            x2,
+                            y2,
+                            lwScaled
+                        );
+                        this._addTriangleCoords(coords, arc0corners, color);
+                        this._addTriangleCoords(coords, arc1corners, color);
+                    }
+                }
+                // Thicken the actual "node" portion, extending from the center
+                // of the layout
+                x1 = this.getNodeInfo(node, "xc0");
+                y1 = this.getNodeInfo(node, "yc0");
+                x2 = this.getX(node);
+                y2 = this.getY(node);
+                corners = VectorOps.computeBoxCorners(x1, y1, x2, y2, lwScaled);
+                this._addTriangleCoords(coords, corners, color);
+            } else {
+                x1 = this.getX(parent);
+                y1 = this.getY(parent);
+                x2 = this.getX(node);
+                y2 = this.getY(node);
+                corners = VectorOps.computeBoxCorners(x1, y1, x2, y2, lwScaled);
+                this._addTriangleCoords(coords, corners, color);
+            }
+        }
+        this._drawer.loadThickNodeBuff(coords);
+    }
+                
+    Empress.prototype.metadataSearcherNotify = function(searchResults) {
+        console.log("metadataSearcherNofity", searchResults);
+        var val = searchResults.searchVal;
+        var nodeList = searchResults.nodeList;
+        var obs = {val: new Set(nodeList)};
+        obs = this._projectObservations(obs, true).val;
+        console.log("proj", obs);
+
+        // Scale the line width in such a way that trees with more leaves have
+        // "smaller" line width values than trees with less leaves. This is a
+        // pretty arbitrary equation based on messing around and seeing what
+        // looked nice on mid- and small-sized trees; as a TODO for the future,
+        // there is almost certainly a better way to do this.
+        var lw = 30; // TODO need to parameterize
+        
+        this._thinkenNodes(obs, lw)
+        this.drawTree();
+
+    }
 
     return Empress;
 });
