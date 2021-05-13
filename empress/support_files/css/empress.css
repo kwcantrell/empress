@@ -585,13 +585,6 @@ p.side-header button:hover,
     white-space: nowrap;
 }
 
-.shear-layer-legend div {
-    max-height: 15em;
-    /* The side panel width is 450px */
-    max-width: 430px;
-    overflow: auto;
-}
-
 .barplot-layer-legend {
     max-height: 15em;
     /* The side panel width is 450px */
@@ -601,13 +594,20 @@ p.side-header button:hover,
 
 /* The legend is resizable, thanks to resize: both; and overflow: auto.
  * See https://stackoverflow.com/a/61976603/10730311.
+ *
+ * The 0.1px bottom padding prevents an unnecessary vertical scrollbar
+ * that kept showing up when setting the legend's width/height back to
+ * their defaults ("") in empress.js. It seems like having a tiny bit
+ * of extra vertical space is needed to get rid of this. It's barely
+ * visible to the user so it shouldn't be a problem.
  */
 #legend-main {
     margin: 20px;
     min-width: 150px;
-    max-width: 40vh;
+    max-width: 33vw;
     min-height: 30px;
     max-height: 85vh;
+    padding-bottom: 0.1px;
     resize: both;
     overflow: auto;
     background-color: rgba(255, 255, 255, 0.5);
@@ -681,11 +681,17 @@ p.side-header button:hover,
 
 /* Somewhere else in the CSS adjusts line height and justify-content,
  * so we reset these here.
+ *
+ * Also, the reason for display: block is because the .control p CSS
+ * elsewhere causes weird problems when there are other tags (e.g.
+ * <span>s, like in the shearing UI) within <p> tags of class
+ * side-panel-notes due to the flex display.
  */
 .side-panel-notes {
     font-size: small;
     line-height: normal !important;
     justify-content: start !important;
+    display: block !important;
 }
 
 .indented {

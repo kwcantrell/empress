@@ -42,6 +42,13 @@ define([
      *                      when generating an Empress visualization, this
      *                      parameter should be [] (and tipMetadata and
      *                      intMetadata should be {}s).
+     * @param {Array} splitTaxonomyColumns Columns of the feature metadata
+     *                                     corresponding to explicitly
+     *                                     specified levels of a taxonomy, if
+     *                                     available. Should be [] if not
+     *                                     applicable. Every value in this
+     *                                     Array must also be present in
+     *                                     featureMetadataColumns.
      * @param {Object} tipMetadata Feature metadata for tips in the tree.
      *                 Note: This should map tip names to an array of feature
      *                       metadata values. Each array should have the same
@@ -55,6 +62,7 @@ define([
         tree,
         biom,
         featureMetadataColumns,
+        splitTaxonomyColumns,
         tipMetadata,
         intMetadata,
         canvas
@@ -169,11 +177,21 @@ define([
         this.isCommunityPlot = !_.isNull(this._biom);
 
         /**
-         * @type{Array}
+         * @type {Array}
          * Feature metadata column names.
          * @private
          */
         this._featureMetadataColumns = featureMetadataColumns;
+
+        /**
+         * @type {Array}
+         * Taxonomy column names. Should be handled specially when coloring
+         * by these, or using them in feature metadata barplots -- see
+         * https://github.com/biocore/empress/issues/473 and
+         * https://github.com/biocore/empress/pull/482 for details/discussion.
+         * @private
+         */
+        this._splitTaxonomyColumns = splitTaxonomyColumns;
 
         /**
          * @type{Object}
@@ -513,11 +531,7 @@ define([
     Empress.prototype.initialize = function () {
         this._drawer.initialize();
         this._events.setMouseEvents();
-        var nodeNames = this._tree.getAllNames();
-        // Don't include nodes with the name null (i.e. nodes without a
-        // specified name in the Newick file) in the auto-complete.
-        nodeNames = nodeNames.filter((n) => n !== null);
-        this._events.autocomplete(nodeNames);
+        this.setAutoCompleteNames();
 
         this.getLayoutInfo();
         this.centerLayoutAvgPoint();
@@ -1730,12 +1744,6 @@ define([
         // Do most of the hard work: compute the frequencies for each tip (only
         // the tips present in the BIOM table, that is)
         var feature2freqs = this._biom.getFrequencyMap(layer.colorBySMField);
-        // var nodes = new Set([...this._tree.postorderTraversal()]);
-        // _.each(feature2freqs, function (blah, node) {
-        //     if (!nodes.has(parseInt(node))) {
-        //         delete feature2freqs[node];
-        //     }
-        // });
 
         // Only bother computing the halfyrscf / halfAngleRange value we need.
         // (this._tree.numleaves() does iterate over the full tree, at least
@@ -1983,6 +1991,17 @@ define([
         } else {
             halfAngleRange = Math.PI / this._tree.numleaves();
         }
+        // NOTE that, for drawing a barplot layer representing a taxonomy
+        // column, we are essentially doing the work here of "reassembling"
+        // the ancestor taxonomy with the child taxonomy info twice -- once
+        // when we call this.getUniqueFeatureMetadataInfo() above, and again
+        // as we go through this loop and look at each tip (this is done for
+        // each tip by the "retrieval function" mentioned below).
+        //
+        // It would be ideal to use the mapping information returned by
+        // this.getUniqueFeatureMetadataInfo() to avoid having to repeat this
+        // work, although this would likely require restructuring the rest
+        // of this function -- might be too much work for its own good.
         for (var node of this._tree.postorderTraversal()) {
             if (this._tree.isleaf(this._tree.postorderselect(node))) {
                 var name = this.getNodeInfo(node, "name");
@@ -1990,8 +2009,15 @@ define([
                 // Assign this tip's bar a color
                 var color;
                 if (layer.colorByFM) {
+                    // Get a function that'll retrieve feature metadata from
+                    // this field for us. As of writing, only does anything
+                    // special for certain taxonomy columns.
+                    var getValFromColorFM = this._getFMValRetrievalFunction(
+                        layer.colorByFMField
+                    );
+
                     if (_.has(this._tipMetadata, node)) {
-                        fm = this._tipMetadata[node][colorFMIdx];
+                        fm = getValFromColorFM(this._tipMetadata[node]);
                         if (_.has(fm2color, fm)) {
                             color = fm2color[fm];
                         } else {
@@ -2014,8 +2040,19 @@ define([
                 // Assign this tip's bar a length
                 var length;
                 if (layer.scaleLengthByFM) {
+                    // Get a function that'll retrieve feature metadata from
+                    // this field for us. As of writing, this currently is
+                    // not especially useful for length scaling, since this
+                    // function only does something special for taxonomy
+                    // columns -- and those shouldn't be numeric. However,
+                    // using this function as the middle-man here ensures
+                    // consistency with how the other uses of feature metadata
+                    // work (in case we define further special cases later on).
+                    var getValFromLengthFM = this._getFMValRetrievalFunction(
+                        layer.scaleLengthByFMField
+                    );
                     if (_.has(this._tipMetadata, node)) {
-                        fm = this._tipMetadata[node][lengthFMIdx];
+                        fm = getValFromLengthFM(this._tipMetadata[node]);
                         if (_.has(fm2length, fm)) {
                             length = fm2length[fm];
                         } else {
@@ -2184,18 +2221,6 @@ define([
     };
 
     /**
-     *
-     */
-    Empress.prototype.getUniqueSampleMetadataInfo = function (cat) {
-        var obs = this._biom.getObsBy(cat);
-        var nodes = new Set([...this._tree.postorderTraversal()]);
-        _.each(obs, function (featuresWithSMValue, smValue) {
-            obs[smValue] = featuresWithSMValue.filter((x) => nodes.has(x));
-        });
-        return obs;
-    };
-
-    /**
      * Color the tree using sample metadata
      *
      * @param {String} cat Sample metadata category to use
@@ -2215,7 +2240,7 @@ define([
         reverse = false
     ) {
         var tree = this._tree;
-        var obs = this.getUniqueSampleMetadataInfo(cat);
+        var obs = this._biom.getObsBy(cat);
         var categories = Object.keys(obs);
 
         // Assign colors to categories
@@ -2230,6 +2255,10 @@ define([
         var cm = colorer.getMapRGB();
         // colors for the legend
         var keyInfo = colorer.getMapHex();
+
+        // if the tree has been sheared then categories in obs maybe empty.
+        // getObsBy() does not filter out those categories so that the same
+        // color can be assigned to each value in obs.
         for (var key in keyInfo) {
             if (obs[key].length === 0) {
                 delete keyInfo[key];
@@ -2270,11 +2299,93 @@ define([
     };
 
     /**
+     * Returns a function that retrieves values for a feature metadata column.
+     *
+     * The returned function takes as input an Array specifying a "row" in the
+     * feature metadata (where each value corresponds to a different feature
+     * metadata column: e.g. one very simple row might be
+     * ["Bacteria", "Firmicutes", "1.25"], if the only feature metadata columns
+     * are "Level 1", "Level 2", and "SomeRandomNumber").
+     *
+     * The "basic" case is that the returned function just retrieves a single
+     * value from this row (e.g. if fmCol is "SomeRandomNumber", then the
+     * returned function should retrieve "1.25" from the aforementioned example
+     * row). However, it's possible for the returned function to behave
+     * differently in special cases. As of writing, the only "special case" is
+     * when fmCol is a non-highest-rank taxonomy column EMPress' Python code
+     * produced (e.g. "Level 2" in the example above) -- in this case, the
+     * returned function will retrieve and combine multiple values, producing
+     * a merged taxonomy string down to a given level (e.g.
+     * "Bacteria; Firmicutes").
+     *
+     * @param {String} fmCol Column in the feature metadata.
+     * @return {Function} Takes as input a row of feature metadata (an Array),
+     *                    and retrieves the "value" for fmCol from this row
+     *                    (which may just mean returning a single element from
+     *                    the row, or combining multiple columns' values) --
+     *                    the behavior is dependent on fmCol.
+     * @throws {Error} If fmCol is not present in this._featureMetadataColumns.
+     */
+    Empress.prototype._getFMValRetrievalFunction = function (fmCol) {
+        var getValFromFM;
+        var taxIdx = _.indexOf(this._splitTaxonomyColumns, fmCol);
+        var fmIdx = _.indexOf(this._featureMetadataColumns, fmCol);
+        if (fmIdx < 0) {
+            throw 'Feature metadata column "' + cat + '" not present in data.';
+        }
+        if (taxIdx <= 0) {
+            // If this feature metadata column is not in the "split taxonomy
+            // columns" (i.e. taxIdx is -1), or if this feature metadata column
+            // corresponds to the highest (and therefore first) taxonomy level
+            // (e.g. "Kingdom" -- in this case taxIdx will be 0), then, when
+            // extracting feature metadata from a given row, we can just get
+            // this column's single value in that row.
+            return function (fmRow) {
+                return fmRow[fmIdx];
+            };
+        } else {
+            // If this feature metadata column corresponds to a taxonomy level
+            // below the highest one (e.g. phylum, or class, ...) then we want
+            // to handle it specially -- see #473 on GitHub. We'll do this by
+            // recording all the "indices" of the feature metadata columns
+            // corresponding to the ancestors above this feature metadata
+            // column (and then this column itself). This makes it easier to
+            // identify all the ancestral information for a given taxonomy
+            // entry.
+            var ancestorFMIndices = [];
+            // We can use a basic for loop starting at 0 because
+            // this._splitTaxonomyColumns are in order
+            for (var i = 0; i < taxIdx; i++) {
+                var currTaxCol = this._splitTaxonomyColumns[i];
+                var currTaxColFMIdx = _.indexOf(
+                    this._featureMetadataColumns,
+                    currTaxCol
+                );
+                ancestorFMIndices.push(currTaxColFMIdx);
+            }
+            // We already know the index of the column we end at, so just put
+            // it here at the end manually. (Saving this extra work probably
+            // won't make an appreciable time difference, but it feels nice :)
+            ancestorFMIndices.push(fmIdx);
+            return function (fmRow) {
+                var totalFMVal = "";
+                _.each(ancestorFMIndices, function (ancestorFMIdx, ii) {
+                    // Separate adjacent levels in the resulting f.m. value
+                    // shown: e.g. "k__Bacteria; p__Cyanobacteria"
+                    if (ii > 0) {
+                        totalFMVal += "; ";
+                    }
+                    totalFMVal += fmRow[ancestorFMIdx];
+                });
+                return totalFMVal;
+            };
+        }
+    };
+
+    /**
      * Retrieve unique value information for a feature metadata field.
      *
      * @param {String} cat The feature metadata column to find information for.
-     *                     Must be present in this._featureMetadataColumns or
-     *                     an error will be thrown.
      * @param {String} method Defines what feature metadata to check.
      *                        If this is "tip", then only tip-level feature
      *                        metadata will be used. If this is "all", then
@@ -2288,6 +2399,9 @@ define([
      *                  -uniqueValueToFeatures: maps to an Object which maps
      *                   the unique values in this feature metadata column to
      *                   an array of the node name(s) with each value.
+     * @throws {Error} If any of the following conditions are met:
+     *                 -If cat is not present in this._featureMetadataColumns
+     *                 -If method is not "tip" or "all"
      */
     Empress.prototype.getUniqueFeatureMetadataInfo = function (cat, method) {
         // get nodes in tree
@@ -2314,17 +2428,25 @@ define([
         } else {
             throw 'F. metadata coloring method "' + method + '" unrecognized.';
         }
+
+        // Define how we're going to extract feature metadata for a given "row"
+        // (i.e. for each entry in the feature metadata).
+        var getValFromFM = this._getFMValRetrievalFunction(cat);
+
         // Produce a mapping of unique values in this feature metadata
         // column to an array of the node name(s) with each value.
         var uniqueValueToFeatures = {};
         _.each(fmObjs, function (mObj) {
             _.mapObject(mObj, function (fmRow, node) {
-                var fmVal = fmRow[fmIdx];
+                var fmVal = getValFromFM(fmRow);
                 if (!_.has(uniqueValueToFeatures, fmVal)) {
                     uniqueValueToFeatures[fmVal] = [];
                 }
+
                 // need to convert to integer
                 node = parseInt(node);
+
+                // ignore nodes that have been sheared
                 if (!nodes.has(node)) {
                     return;
                 }
@@ -2374,7 +2496,6 @@ define([
         var uniqueValueToFeatures = fmInfo.uniqueValueToFeatures;
         // convert observation IDs to _treeData keys. Notably, this includes
         // converting the values of uniqueValueToFeatures from Arrays to Sets.
-
         var obs = {};
         _.each(sortedUniqueValues, function (uniqueVal, i) {
             uniqueVal = sortedUniqueValues[i];
@@ -2389,11 +2510,16 @@ define([
             undefined,
             reverse
         );
+
         // colors for drawing the tree
         var cm = colorer.getMapRGB();
 
         // colors for the legend
         var keyInfo = colorer.getMapHex();
+
+        // if the tree has been sheared then categories in obs maybe empty.
+        // getUniqueFeatureMetadataInfo() does not filter out those categories
+        // so that the same color can be assigned to each value in obs.
         for (var key in keyInfo) {
             if (uniqueValueToFeatures[key].length === 0) {
                 delete keyInfo[key];
@@ -2441,52 +2567,52 @@ define([
      */
     Empress.prototype._projectObservations = function (obs, ignoreAbsentTips) {
         var tree = this._tree,
-            categories = Object.keys(obs),
-            notRepresented = new Set(),
-            i,
-            j;
-
-        if (!ignoreAbsentTips) {
-            // find "non-represented" tips
-            // Note: the following uses postorder traversal
-            for (i of this._tree.postorderTraversal()) {
-                if (tree.isleaf(tree.postorderselect(i))) {
-                    var represented = false;
-                    for (j = 0; j < categories.length; j++) {
-                        if (obs[categories[j]].has(i)) {
-                            represented = true;
-                            break;
-                        }
-                    }
-                    if (!represented) notRepresented.add(i);
+            nodeValue = [],
+            node,
+            category;
+        // set values for each node in obs
+        for (category in obs) {
+            for (node of obs[category]) {
+                if (nodeValue[node] === undefined) {
+                    nodeValue[node] = category;
+                } else {
+                    nodeValue[node] = null;
                 }
             }
         }
 
-        // assign internal nodes to appropriate category based on children
-        // iterate using postorder
-        // Note that, although we don't explicitly iterate over the
-        // root (at index tree.size) in this loop, we iterate over all its
-        // descendants; so in the event that all leaves are unique,
-        // the root can still get assigned to a group.
-        for (i of this._tree.postorderTraversal()) {
-            var node = i;
-            var parent = tree.postorder(tree.parent(tree.postorderselect(i)));
+        for (node of this._tree.postorderTraversal()) {
+            var parent = tree.postorder(
+                tree.parent(tree.postorderselect(node))
+            );
+            if (nodeValue[node] === undefined && ignoreAbsentTips) {
+                continue;
+            }
 
-            for (j = 0; j < categories.length; j++) {
-                category = categories[j];
-
-                // add internal nodes to groups
-                if (obs[category].has(node)) {
-                    obs[category].add(parent);
-                }
-                if (notRepresented.has(node)) {
-                    notRepresented.add(parent);
-                }
+            if (
+                nodeValue[parent] === undefined &&
+                nodeValue[node] !== undefined
+            ) {
+                nodeValue[parent] = nodeValue[node];
+            } else if (
+                nodeValue[parent] !== nodeValue[node] ||
+                nodeValue[node] === undefined
+            ) {
+                nodeValue[parent] = null;
             }
         }
 
-        var result = util.keepUniqueKeys(obs, notRepresented);
+        var result = {};
+        for (node of this._tree.postorderTraversal(true)) {
+            category = nodeValue[node];
+            if (category !== null && category !== undefined) {
+                if (result.hasOwnProperty(category)) {
+                    result[category].add(node);
+                } else {
+                    result[category] = new Set([node]);
+                }
+            }
+        }
 
         // remove all groups that do not contain unique features
         result = _.pick(result, function (value, key) {
@@ -2534,13 +2660,19 @@ define([
             this.setNodeInfo(node, "isColored", false);
             this.setNodeInfo(node, "visible", true);
         }
-        this._collapsedClades = {};
         this._dontCollapse = new Set();
         this._collapsedCladeBuffer = [];
         this._drawer.loadThickNodeBuff([]);
         this._drawer.loadCladeBuff([]);
         this._group = new Array(this._tree.size + 1).fill(-1);
-        this._drawer.loadTreeCoordsBuff(this.getTreeCoords());
+
+        // if _collapsedClades is empty then there is no need to call
+        // getTreeCoords which can save a fair amount of time depending on the
+        // size of the tree
+        if (Object.keys(this._collapsedClades).length > 0) {
+            this._drawer.loadTreeCoordsBuff(this.getTreeCoords());
+        }
+        this._collapsedClades = {};
     };
 
     /**
@@ -2548,6 +2680,20 @@ define([
      */
     Empress.prototype.clearLegend = function () {
         this._legend.clear();
+    };
+
+    /**
+     * Set the #legend-main width and height back to their defaults.
+     *
+     * This allows the legend to be resized back to whatever the default
+     * size will be, since manually resizing the legend sets a fixed
+     * width/height value.
+     */
+    Empress.prototype.resizeLegend = function () {
+        // Setting CSS properties to "" causes the default values to be used:
+        // see https://stackoverflow.com/a/21457941.
+        document.getElementById("legend-main").style.width = "";
+        document.getElementById("legend-main").style.height = "";
     };
 
     /**
@@ -2563,6 +2709,7 @@ define([
      *                         color, expressed in hex format.
      */
     Empress.prototype.updateLegendCategorical = function (name, keyInfo) {
+        this.resizeLegend();
         this._legend.addCategoricalKey(name, keyInfo);
     };
 
@@ -2611,6 +2758,16 @@ define([
         // stuff to only change whenever the tree is redrawn.
         this.thickenColoredNodes(this._currentLineWidth);
 
+        this.redrawBarPlotsToMatchLayout();
+        this.centerLayoutAvgPoint();
+    };
+
+    /**
+     * Redraw the barplot to match the current layout. If the current layout is
+     * "Unrooted" then this will remove the barplots from canvas.
+     *
+     */
+    Empress.prototype.redrawBarPlotsToMatchLayout = function () {
         // Undraw or redraw barplots as needed (assuming barplots are supported
         // in the first place, of course; if no feature or sample metadata at
         // all was passed then barplots are not available :()
@@ -2624,7 +2781,6 @@ define([
                 this.drawBarplots();
             }
         }
-        this.centerLayoutAvgPoint();
     };
 
     /**
@@ -3113,7 +3269,7 @@ define([
 
         // step 1: find all nodes in the clade.
         // Note: cladeNodes is an array of nodes arranged in postorder fashion
-        var cladeNodes = this._tree.getCladeNodes(rootNode);
+        var cladeNodes = this._tree.getCladeNodes(parseInt(rootNode));
 
         // use the left most child in the clade to initialize currentCladeInfo
         var currentCladeInfo = {
@@ -3560,7 +3716,7 @@ define([
      */
     Empress.prototype.getTreeStats = function () {
         // Compute node counts
-        var allCt = this._tree.size;
+        var allCt = this._tree.currentSize;
         var tipCt = this._tree.getNumTips(this._tree.size);
         var intCt = allCt - tipCt;
         // Get length statistics
@@ -3620,13 +3776,24 @@ define([
     };
 
     /**
+     * This will fill the autocomplete search bar with the names of the current
+     * tree.
+     */
+    Empress.prototype.setAutoCompleteNames = function () {
+        var nodeNames = this._tree.getAllNames();
+        // Don't include nodes with the name null (i.e. nodes without a
+        // specified name in the Newick file) in the auto-complete.
+        nodeNames = nodeNames.filter((n) => n !== null);
+        this._events.autocomplete(nodeNames);
+    };
+
+    /**
      * This will shear/unshear
      */
     Empress.prototype.shear = function (shearMap) {
         this._tree.unshear();
         var scope = this;
         var removeNodes = new Set();
-
         shearMap.forEach(function (values, cat) {
             var fmInfo = scope.getUniqueFeatureMetadataInfo(cat, "tip");
             var uniqueValueToFeatures = fmInfo.uniqueValueToFeatures;
@@ -3638,47 +3805,17 @@ define([
             });
         });
 
-        // remove removeNodes
-        var allNodes = _.range(1, this._tree.size + 1);
-        allNodes.shift();
-
-        allNodes = new Set(allNodes);
-        var keepNodes = new Set(
-            [...allNodes].filter((x) => !removeNodes.has(x))
-        );
-
-        var keepNames = [];
-        for (var node of keepNodes) {
-            var name = this._tree.name(this._tree.postorderselect(node));
-            keepNames.push(name);
-        }
-
         if (this.isCommunityPlot) {
-            this._biom.setIngnoreNodes(new Set(removeNodes));
+            this._biom.setIngnoreNodes(removeNodes);
         }
 
-        this._tree.shear(new Set(keepNames));
-        var nodeNames = this._tree.getAllNames();
-        // Don't include nodes with the name null (i.e. nodes without a
-        // specified name in the Newick file) in the auto-complete.
-        nodeNames = nodeNames.filter((n) => n !== null);
-        this._events.autocomplete(nodeNames);
+        this._tree.shear(removeNodes);
+
+        this.setAutoCompleteNames();
 
         this.getLayoutInfo();
 
-        // Undraw or redraw barplots as needed (assuming barplots are supported
-        // in the first place, of course; if no feature or sample metadata at
-        // all was passed then barplots are not available :()
-        if (!_.isNull(this._barplotPanel)) {
-            var supported = this._barplotPanel.updateLayoutAvailability(
-                this._currentLayout
-            );
-            if (!supported && this._barplotsDrawn) {
-                this.undrawBarplots();
-            } else if (supported && this._barplotPanel.enabled) {
-                this.drawBarplots();
-            }
-        }
+        this.redrawBarPlotsToMatchLayout();
     };
 
     return Empress;

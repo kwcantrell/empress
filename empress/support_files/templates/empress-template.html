@@ -146,6 +146,8 @@
         );
         var fmCols = {{ feature_metadata_columns | tojson }};
 
+        var splitTaxonomyCols = {{ split_taxonomy_columns | tojson }};
+
         var canvas = document.getElementById('tree-surface');
 
         // NOTE: the contents of this line are validated in the python
@@ -176,6 +178,7 @@
             tree,
             biom,
             fmCols,
+            splitTaxonomyCols,
             {{ compressed_tip_metadata | tojson }},
             {{ compressed_int_metadata | tojson }},
             canvas
@@ -196,7 +199,6 @@
           empress.getFeatureMetadataCategories()
         );
         shearer.registerObserver(sPanel);
-        // shearer.registerObserver(empress._barplotPanel);
 
         // Only show the sample metadata coloring / animation panels if a
         // feature table and sample metadata file were provided
@@ -228,6 +230,17 @@
         } else {
             $(".needs-feature-metadata").addClass("hidden");
         }
+
+        // Here we register the stats button to the shearer so that the tree
+        // stats are updated whenever the tree is sheared.
+        var statsButton = document.getElementById("stats-btn");
+        statsButton.shearUpdate = () => {
+          sPanel.populateTreeStats();
+          statsButton.classList.remove("unpopulated");
+        };
+        shearer.registerObserver(shearer);
+        shearer.registerObserver(statsButton);
+        
 
         // make all tabs collapsable
         document.querySelectorAll(".collapsible").forEach(function(btn) {
