@@ -12,10 +12,14 @@ define([], function() {
 
 	MetadataSearcherModel.prototype.searchMetadata = function(searchCol, searchVal) {
 		var scope = this;
+		var sv = searchVal.split(', ')[0];
+		var lw = searchVal.split(', ')[1];
+		searchVal = sv;
 		this.searchResult = {
 			searchCol: searchCol,
 			searchVal: searchVal,
 			nodeList: [],
+			lw: lw
 		};
 		_.each(scope.cols, function(col, colIndx) {
 			if (col === searchCol) {
@@ -29,6 +33,7 @@ define([], function() {
 				})
 			}
 		});
+		console.log("wtf", this.searchResult)
 		this.notify();
 	}
 
@@ -64,6 +69,7 @@ define([], function() {
 	};
 
 	MetadataSearcher.prototype.searchMetadata = function(searchCol, searchVal) {
+		console.log("??", searchCol, searchVal)
 		this.controller.searchMetadata(searchCol, searchVal);
 	};
 

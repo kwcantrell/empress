@@ -539,8 +539,7 @@ define([
 
         this.getLayoutInfo();
         this.centerLayoutAvgPoint();
-        this.metadataSearcher.searchMetadata("Level 2", "p__Crenarchaeota");
-
+        // this.metadataSearcher.searchMetadata("UCSD", "yes");
     };
 
     /**
@@ -3705,8 +3704,12 @@ define([
 
         // iterate through the tree in postorder, skip root
         var root = tree.postorder(tree.root());
-        for (var node of nodes) {
-            if (node === root) continue;
+        for (var node of this._tree.postorderTraversal()) {
+            if (!nodes.has("" + node)) {
+                continue;
+                // this._treeData[node][this._tdToInd["color"]] /= 2;
+            }
+            this._treeData[node][this._tdToInd["visible"]] = false;
             // name of current node
             var parent = tree.postorder(
                 tree.parent(tree.postorderselect(node))
@@ -3720,7 +3723,7 @@ define([
             //     continue;
             // }
 
-            var color = this.getNodeInfo(node, "color");
+            var color = Colorer.removeAlpha(this.getNodeInfo(node, "color"));
             if (this._currentLayout === "Rectangular") {
                 // Draw a thick vertical line for this node, if it isn't a tip
                 if (this.getNodeInfo(node, "lowestchildyr") !== undefined) {
@@ -3806,12 +3809,12 @@ define([
         this._drawer.loadThickNodeBuff(coords);
     }
                 
-    Empress.prototype.metadataSearcherNotify = function(searchResults) {
+    Empress.prototype.metadataSearcherNotify = function(searchResults, lw) {
         console.log("metadataSearcherNofity", searchResults);
         var val = searchResults.searchVal;
         var nodeList = searchResults.nodeList;
         var obs = {val: new Set(nodeList)};
-        obs = this._projectObservations(obs, true).val;
+        // obs = this._projectObservations(obs, true).val;
         console.log("proj", obs);
 
         // Scale the line width in such a way that trees with more leaves have
@@ -3819,9 +3822,9 @@ define([
         // pretty arbitrary equation based on messing around and seeing what
         // looked nice on mid- and small-sized trees; as a TODO for the future,
         // there is almost certainly a better way to do this.
-        var lw = 30; // TODO need to parameterize
+        // var lw = 30; // TODO need to parameterize
         
-        this._thinkenNodes(obs, lw)
+        this._thinkenNodes(obs.val, searchResults.lw);
         this.drawTree();
 
     }

@@ -11,14 +11,15 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         "attribute vec2 vertPosition;",
         "uniform mat4 mvpMat;",
         "attribute float color;",
-        "varying vec3 c;",
+        "varying vec4 c;",
         "uniform float pointSize;",
         "",
-        "vec3 unpackColor(float f) {",
-        "  vec3 color;",
+        "vec4 unpackColor(float f) {",
+        "  vec4 color;",
         "  color.r = mod(f, 256.0);",
         "  color.g = mod((f - color.r) / 256.0, 256.0);",
-        "  color.b = (f - color.r - (256.0 * color.g)) / (65536.0);",
+        "  color.b = mod((f - color.r - (256.0 * color.g)) / (65536.0), 256.0);",
+        "  color.a = mod((f - color.r - (256.0 * color.g) - (256.0*256.0*color.b)) / (16777216.0), 256.0);",
         "  // rgb are in range [0...255] but they need to be [0...1]",
         "  return color / 255.0;",
         "}",
@@ -32,7 +33,7 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
     ].join("\n");
     var fragShaderTxt = [
         "precision mediump float;",
-        "varying vec3 c;",
+        "varying vec4 c;",
         "uniform int isSingle;",
         "",
         "void main()",
@@ -43,7 +44,7 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         "if (r > 1.0 && isSingle == 1) {",
         "   discard;",
         "}",
-        "  gl_FragColor = vec4(c,1);",
+        "  gl_FragColor = c;",
         "}",
     ].join("\n");
 
@@ -62,7 +63,12 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
     function Drawer(canvas, cam) {
         this.canvas = canvas;
         this.treeContainer = document.getElementById("tree-container");
-        this.contex_ = canvas.getContext("webgl");
+        this.contex_ = canvas.getContext("webgl",
+            {
+                premultipliedAlpha: false,
+                // alpha: false
+            }
+        );
         this.cam = cam;
         this.VERTEX_SIZE = 3;
         this.COORD_SIZE = 2;

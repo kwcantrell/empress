@@ -384,9 +384,12 @@ define(["underscore", "glMatrix", "SelectedNodeMenu"], function (
         /**
          * click event for quickSearchBtn
          */
+         var scope = this;
         var search = function () {
             var nodeName = quickSearchBar.value;
-            scope.placeNodeSelectionMenu(nodeName, true);
+            console.log(nodeName)
+            scope.empress.metadataSearcher.searchMetadata(...nodeName.split(' => '));
+            // scope.placeNodeSelectionMenu(nodeName, true);
         };
         searchBtn.onclick = search;
     };
