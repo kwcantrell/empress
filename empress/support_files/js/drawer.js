@@ -10,6 +10,7 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         "",
         "attribute vec2 vertPosition;",
         "uniform mat4 mvpMat;",
+        "uniform float a;",
         "attribute float color;",
         "varying vec4 c;",
         "uniform float pointSize;",
@@ -19,7 +20,7 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         "  color.r = mod(f, 256.0);",
         "  color.g = mod((f - color.r) / 256.0, 256.0);",
         "  color.b = mod((f - color.r - (256.0 * color.g)) / (65536.0), 256.0);",
-        "  color.a = mod((f - color.r - (256.0 * color.g) - (256.0*256.0*color.b)) / (16777216.0), 256.0);",
+        "  color.a = a;//(f - color.r - (256.0 * color.g) - (65536.0*color.b)) / (16777216.0);",
         "  // rgb are in range [0...255] but they need to be [0...1]",
         "  return color / 255.0;",
         "}",
@@ -135,6 +136,7 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         s.mvpMat = c.getUniformLocation(s, "mvpMat");
         s.isSingle = c.getUniformLocation(s, "isSingle");
         s.pointSize = c.getUniformLocation(s, "pointSize");
+        s.alpha = c.getUniformLocation(s, "a");
 
         // buffer object for tree coordinates
         s.treeCoordBuff = c.createBuffer();
@@ -398,6 +400,7 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
 
         // set the mvp attribute
         c.uniformMatrix4fv(s.mvpMat, false, mvp);
+        c.uniform1f(s.alpha, 5.0);
 
         // This seems to determine whether or not points are drawn as squares
         // or as circles (1 = circle, 0 = square). We set it to 1 so that node
@@ -419,7 +422,8 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         this.bindBuffer(s.treeCoordBuff, 2, 2);
         this.bindBuffer(s.treeColorBuff, 3, 1);
         c.drawArrays(c.LINES, 0, this.treeCoordSize);
-
+        
+        c.uniform1f(s.alpha, 255.0);
         this.bindBuffer(s.thickNodeBuff, 1, 3);
         c.drawArrays(c.TRIANGLES, 0, this.thickNodeSize);
 

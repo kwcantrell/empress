@@ -402,13 +402,10 @@ define(["chroma", "underscore", "util"], function (chroma, _, util) {
      *
      * @return{Number} the compressed color to be used in WebGl shaders
      */
-    Colorer.rgbToFloat = function (rgb, a=5) {
-        return rgb[0] + rgb[1] * 256 + rgb[2] * 256 * 256 + a * 256 * 256 * 256;
+    Colorer.rgbToFloat = function (rgb) {
+        return rgb[0] + rgb[1] * 256 + rgb[2] * 256 * 256;
     };
 
-    Colorer.removeAlpha = function(c) {
-        return (c - 5 * 256 *256 *256) + 255*256 *256 *256;
-    }
 
     /**
      * Converts an RGB color array (with values in the range [0, 255])

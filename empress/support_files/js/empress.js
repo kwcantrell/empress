@@ -3676,7 +3676,7 @@ define([
     };
 
     Empress.prototype._thinkenNodes = function(nodes, lw) {
-        console.log(nodes)
+        console.log('???', nodes)
         if (nodes === undefined) return;
         /***************DO WE NEED THIS?********************/
         // // In the corner case where the root node (located at index tree.size)
@@ -3706,10 +3706,12 @@ define([
         var root = tree.postorder(tree.root());
         for (var node of this._tree.postorderTraversal()) {
             if (!nodes.has("" + node)) {
+                console.log('!!!', node)
                 continue;
-                // this._treeData[node][this._tdToInd["color"]] /= 2;
             }
-            this._treeData[node][this._tdToInd["visible"]] = false;
+            
+            // console.log(node)
+            // this._treeData[node][this._tdToInd["visible"]] = false;
             // name of current node
             var parent = tree.postorder(
                 tree.parent(tree.postorderselect(node))
@@ -3723,7 +3725,7 @@ define([
             //     continue;
             // }
 
-            var color = Colorer.removeAlpha(this.getNodeInfo(node, "color"));
+            var color = this.getNodeInfo(node, "color");
             if (this._currentLayout === "Rectangular") {
                 // Draw a thick vertical line for this node, if it isn't a tip
                 if (this.getNodeInfo(node, "lowestchildyr") !== undefined) {
