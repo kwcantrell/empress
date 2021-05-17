@@ -1837,6 +1837,7 @@ define([
                 throw msg;
             }
             fm2color = colorer.getMapRGB();
+            this.temp = fm2color;
         }
 
         // Next, map feature metadata values to lengths if requested
@@ -2396,8 +2397,20 @@ define([
         // colors for drawing the tree
         var cm = colorer.getMapRGB();
 
+        cm["B.1.351"] = Colorer.hex2RGB('#008080');
+        cm["B.1.429"] = Colorer.hex2RGB('#7da9d8');
+        cm["P.1"] = Colorer.hex2RGB('#a54700');
+        cm["B.1.1.7"] = Colorer.hex2RGB("#91278d");
+        cm['other'] = Colorer.hex2RGB('#00b6ff');
+    
+
         // colors for the legend
         var keyInfo = colorer.getMapHex();
+        keyInfo["B.1.351"] = '#008080';
+        keyInfo["B.1.429"] = '#7da9d8';
+        keyInfo["P.1"] = '#a54700';
+        keyInfo["B.1.1.7"] = "#91278d";
+        keyInfo['other'] = '#00b6ff';
 
         // if the tree has been sheared then categories in obs maybe empty.
         // getUniqueFeatureMetadataInfo() does not filter out those categories

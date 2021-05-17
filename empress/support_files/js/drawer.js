@@ -400,7 +400,7 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
 
         // set the mvp attribute
         c.uniformMatrix4fv(s.mvpMat, false, mvp);
-        c.uniform1f(s.alpha, 5.0);
+        c.uniform1f(s.alpha, 25.0);
 
         // This seems to determine whether or not points are drawn as squares
         // or as circles (1 = circle, 0 = square). We set it to 1 so that node
