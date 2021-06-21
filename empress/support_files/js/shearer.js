@@ -1,165 +1,9 @@
-define(["underscore", "util", "TreeController"], function (
+define(["underscore", "util", "TreeController", "ShearSelectLayer"], function (
     _,
     util,
-    TreeController
+    TreeController,
+    ShearSelectLayer,
 ) {
-    /**
-     * Stores the next unique number for the removeLayer button is ShearLayer
-     */
-    var UniqueRemoveNum = 0;
-
-    /**
-     * Returns a unique number to use for the id of the removeLayer button.
-     */
-    function getUniqueNum() {
-        return UniqueRemoveNum++;
-    }
-
-    /**
-     * @class ShearLayer
-     *
-     * Create a new shear layer and adds it to the shear panel
-     */
-    function ShearLayer(
-        fCol,
-        fVals,
-        container,
-        chkBxClickFunction,
-        removeClickFunction,
-        selectAllFunction,
-        unselectAllFuntion
-    ) {
-        this.fCol = fCol;
-        this.fVals = fVals;
-        this.container = container;
-        this.layerDiv = null;
-        this.inputs = [];
-        this.values = [];
-
-        var scope = this;
-
-        // create layer div
-        this.layerDiv = document.createElement("div");
-        this.container.insertBefore(this.layerDiv, this.container.firstChild);
-
-        // create border line
-        this.layerDiv.appendChild(document.createElement("hr"));
-
-        // create checkbox legend title
-        var legendTitle = document.createElement("div");
-        this.layerDiv.appendChild(legendTitle);
-        legendTitle.innerText = this.fCol;
-        legendTitle.classList.add("legend-title");
-
-        // // create container for select/unselect all buttons
-        var p = document.createElement("p");
-        this.layerDiv.appendChild(p);
-
-        // create the select all button
-        var button = document.createElement("button");
-        button.innerText = "Select all";
-        button.onclick = function () {
-            _.each(scope.inputs, function (input) {
-                input.select();
-            });
-            selectAllFunction(scope.fCol);
-        };
-        button.setAttribute("style", "margin: 0 auto;");
-        p.appendChild(button);
-
-        // create the unselect all button
-        button = document.createElement("button");
-        button.innerText = "Unselect all";
-        button.onclick = function () {
-            _.each(scope.inputs, function (input) {
-                input.unselect();
-            });
-            unselectAllFuntion(scope.fCol, _.clone(scope.values));
-        };
-        button.setAttribute("style", "margin: 0 auto;");
-        p.appendChild(button);
-
-        // create checkbox legend div
-        var chkBoxLegendDiv = document.createElement("div");
-        this.layerDiv.appendChild(chkBoxLegendDiv);
-        chkBoxLegendDiv.classList.add("barplot-layer-legend");
-        chkBoxLegendDiv.classList.add("legend");
-
-        // create chcbox div
-        var legendChkBoxs = document.createElement("div");
-        chkBoxLegendDiv.appendChild(legendChkBoxs);
-
-        // create checkboxes
-        var table = document.createElement("table");
-        legendChkBoxs.appendChild(table);
-        var uniqueNum = 1;
-        _.each(this.fVals, function (val) {
-            scope.values.push(val);
-            var row = document.createElement("tr");
-            var id =
-                scope.fCol.replaceAll(" ", "-") +
-                "-" +
-                val.replaceAll(" ", "-") +
-                uniqueNum++;
-
-            // add checkbox
-            var dataCheck = document.createElement("td");
-            var input = document.createElement("input");
-            input.id = id;
-            input.setAttribute("type", "checkbox");
-            input.checked = true;
-            input.onchange = function () {
-                chkBxClickFunction(!input.checked, scope.fCol, val);
-            };
-
-            // the select/unselect functions that the "Select all" and
-            // "Unselect all" buttons will call
-            input.select = function () {
-                input.checked = true;
-            };
-            input.unselect = function () {
-                input.checked = false;
-            };
-
-            scope.inputs.push(input);
-            dataCheck.appendChild(input);
-            row.appendChild(dataCheck);
-
-            // add checkbox label
-            var dataLabel = document.createElement("label");
-            dataLabel.setAttribute("for", input.id);
-            dataLabel.innerText = val;
-            var labelTD = document.createElement("td");
-            labelTD.appendChild(dataLabel);
-            row.appendChild(labelTD);
-
-            // add row to table
-            table.appendChild(row);
-        });
-
-        // create remove container
-        var removeContainer = document.createElement("p");
-        this.layerDiv.appendChild(removeContainer);
-
-        // create remove label
-        var removeLabel = document.createElement("label");
-        removeLabel.innerText = "Remove this layer";
-        removeContainer.appendChild(removeLabel);
-
-        // create remove button
-        var removeButton = document.createElement("button");
-        removeButton.id = "shear-layer-" + getUniqueNum() + "-delete";
-        removeButton.innerText = "-";
-        removeButton.onclick = function () {
-            removeClickFunction(scope.fCol);
-            scope.layerDiv.remove();
-            scope.layerDiv = null;
-        };
-        removeContainer.appendChild(removeButton);
-
-        removeLabel.setAttribute("for", removeButton.id);
-    }
-
     /**
      * @class ShearModel
      *
@@ -185,25 +29,24 @@ define(["underscore", "util", "TreeController"], function (
     ShearModel.prototype.addLayer = function (layer) {
         var fVals = this.empress.getUniqueFeatureMetadataInfo(layer, "tip")
             .sortedUniqueValues;
-        var layerObj = new ShearLayer(
+        var shearSelectLayer = new ShearSelectLayer(
             layer,
             fVals,
             this.container,
-            (add, lyr, val) => {
-                ShearModel.addRemoveShearItem(this, add, lyr, val);
-            },
-            (lyr) => {
-                ShearModel.removeLayer(this, lyr);
-            },
-            (lyr) => {
-                ShearModel.clearShearMapLayer(this, lyr);
-            },
-            (lyr, values) => {
-                ShearModel.setShearMapLayer(this, lyr, values);
-            }
+            false
         );
-        this.layers.set(layer, layerObj);
+        shearSelectLayer.registerObserver(this);
+        this.layers.set(layer, shearSelectLayer);
     };
+
+    ShearModel.prototype.shearSelectLayerUpdate = function(layerTitle, values, removeLayer) {
+        if (removeLayer) {
+            this.removeLayer(layerTitle);
+        } else {
+            this.shearMap.set(layerTitle, values);
+            this.notify();
+        }
+    }
 
     /**
      * Returns the feature values the have been unselected (i.e. sheared) from
@@ -274,84 +117,10 @@ define(["underscore", "util", "TreeController"], function (
      * @param{ShearModel} model The ShearModel to use
      * @param{String} layer The name of layer to remove.
      */
-    ShearModel.removeLayer = function (model, layer) {
-        model.layers.delete(layer);
-        model.shearMap.delete(layer);
-        model.notify();
-    };
-
-    /**
-     * Clears the shearMap.
-     *
-     * @param{ShearModel} model The ShearModel to use
-     * @param{String} layer The feature metadata column name of the shear layer
-     */
-    ShearModel.clearShearMapLayer = function (model, layer) {
-        model.shearMap.set(layer, []);
-        model.notify();
-    };
-
-    /**
-     * sets a shear layer within the shearMap.
-     *
-     * @param{ShearModel} model The ShearModel to use.
-     * @param{String} layer The feature metadata column name of the shear layer
-     * @param{Array} values An array of feature metadata value
-     */
-    ShearModel.setShearMapLayer = function (model, layer, values) {
-        model.shearMap.set(layer, values);
-        model.notify();
-    };
-
-    /**
-     * Adds or removes a shear value from a shear layer.
-     * @param{ShearModel} model The ShearModel to use.
-     * @param{Boolean} remove Whether or not to remove val from the shear layer
-     * @param{String} layer The name of feature metadata column of shear layer
-     * @param{String} val The feature metadata column value to add or remove
-     *                    from layer.
-     */
-    ShearModel.addRemoveShearItem = function (model, remove, layer, val) {
-        if (remove) {
-            ShearModel.addShearItem(model, layer, val);
-        } else {
-            ShearModel.removeShearItem(model, layer, val);
-        }
-    };
-
-    /**
-     * Adds a shear value from a shear layer.
-     * @param{ShearModel} model The ShearModel to use.
-     * @param{String} layer The name of feature metadata column of shear layer
-     * @param{String} val The feature metadata column value to add or remove
-     *                    from layer.
-     */
-    ShearModel.addShearItem = function (model, layer, val) {
-        if (model.shearMap.has(layer)) {
-            model.shearMap.get(layer).push(val);
-        } else {
-            model.shearMap.set(layer, [val]);
-        }
-        model.notify();
-    };
-
-    /**
-     * Removes a shear value from a shear layer.
-     * @param{ShearModel} model The ShearModel to use.
-     * @param{String} layer The name of feature metadata column of shear layer
-     * @param{String} val The feature metadata column value to add or remove
-     *                    from layer.
-     */
-    ShearModel.removeShearItem = function (model, layer, val) {
-        var items = model.getShearLayer(layer);
-        if (items === undefined) {
-            return;
-        }
-        var index = items.indexOf(val);
-        if (index > -1) {
-            items.splice(index, 1);
-        }
-        model.notify();
+    ShearModel.prototype.removeLayer = function (layer) {
+        this.layers.delete(layer);
+        this.shearMap.delete(layer);
+        this.notify();
     };
 
     /**
@@ -442,6 +211,7 @@ define(["underscore", "util", "TreeController"], function (
      * Add metadata values back into the shear select container.
      */
     Shearer.prototype.shearUpdate = function () {
+        console.log("???")
         // clear select
         this.shearSelect.innerHTML = "";
 

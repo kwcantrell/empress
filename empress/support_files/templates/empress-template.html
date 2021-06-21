@@ -119,7 +119,10 @@
             'EnableDisableTab': './js/enable-disable-tab',
             'EnableDisableSidePanelTab': './js/enable-disable-side-panel-tab',
             'EnableDisableAnimationTab': './js/enable-disable-animation-tab',
-
+            'FieldSelectLayer': './js/field-select-layer',
+            'ShearSelectLayer': './js/shear-select-layer',
+            'FeatureAlphaAdjuster': './js/feature-alpha-adjuster',
+            'AlphaSelectLayer': './js/alpha-select-layer',
         }
     });
 
@@ -130,13 +133,14 @@
                     'Legend', 'Colorer', 'VectorOps', 'CanvasEvents',
                     'SelectedNodeMenu', 'util', 'LayoutsUtil', 'ExportUtil',
                     'Shearer', 'EnableDisableSidePanelTab',
-                    'EnableDisableAnimationTab'],
+                    'EnableDisableAnimationTab', "FeatureAlphaAdjuster"],
         function($, gl, chroma, underscore, spectrum, toastr, filesaver,
                  ByteArray, BPTree, Camera, Drawer, SidePanel, AnimationPanel,
                  Animator, BarplotLayer, BarplotPanel, BIOMTable, Empress,
                  Legend, Colorer, VectorOps, CanvasEvents, SelectedNodeMenu,
                  util, LayoutsUtil, ExportUtil, Shearer,
-                 EnableDisableSidePanelTab, EnableDisableAnimationTab) {
+                 EnableDisableSidePanelTab, EnableDisableAnimationTab,
+                 FeatureAlphaAdjuster) {
         // NOTE: the contents of this line are validated in the python
         // integration tests. If this line is changed somehow, the integration
         // tests will need to be updated accordingly.
@@ -230,6 +234,11 @@
           empress.getFeatureMetadataCategories(),
         );
         shearer.registerObserver(sPanel);
+
+        var alphaAdjuster = new FeatureAlphaAdjuster(
+            empress,
+            empress.getFeatureMetadataCategories()
+        );
 
         // Only show the sample metadata coloring / animation panels if a
         // feature table and sample metadata file were provided

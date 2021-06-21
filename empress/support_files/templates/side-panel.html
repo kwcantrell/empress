@@ -121,6 +121,29 @@
   </p>
 </div>
 
+<!-- Alpha options -->
+<button id="AlphaOpenButton" class="side-header collapsible needs-feature-metadata">
+    Adjust Tree Alpha Setting</button>
+<div class="side-content control hidden" id="alpha-div">
+  <p class="side-panel-notes">
+    Adjust the alpha setting for the tree branches using feature metadata.
+  </p>
+  <div id="alpha-add-options">
+    <p>
+      <label for="alpha-feature-select">Adjust alpha by...</label>
+      <label class="select-container">
+        <select id="alpha-feature-select"></select>
+      </label>
+    </p>
+    <p>
+      <label for="alpha-add-btn">Add alpha layer</label>
+      <button id="alpha-add-btn">+</button>
+    </p>
+  </div>
+  <div id="alpha-layer-container">
+  </div>
+</div>
+
 <!-- Layout methods and options; shamelessly copied from above. -->
 <button class="side-header collapsible">Layout</button>
 <div class="side-content control hidden">
