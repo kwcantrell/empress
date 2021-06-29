@@ -146,6 +146,8 @@
         // tests will need to be updated accordingly.
         var isCommunityPlot = {{ is_community_plot | tojson }};
 
+        var isEmpirePlot = {{ is_empire_plot | tojson }};
+
         // create EnableDisableSidePanelTabs to disable when animation is
         // running.
         // This must be done first so that everything else is linked properly.
@@ -163,10 +165,6 @@
                         "feature-metadata-coloring-div")
                 },
                 {
-                    tabName: "Barplots",
-                    container: document.getElementById("barplot-div")
-                },
-                {
                     tabName: "Shear Tree",
                     container: document.getElementById("shear-div")
                 },
@@ -175,7 +173,8 @@
             // wrap the sidepanel tabs in a EnableDisableSidePanelTab
             _.each(tabs, function(tabInfo) {
                 sidePanelTabs.push(
-                    new EnableDisableSidePanelTab(tabInfo.tabName, tabInfo.container)
+                    new EnableDisableSidePanelTab(tabInfo.tabName,
+                        tabInfo.container, isEmpirePlot)
                 );
             });
             var animationTab = new EnableDisableAnimationTab(
@@ -193,11 +192,6 @@
         var splitTaxonomyCols = {{ split_taxonomy_columns | tojson }};
 
         var canvas = document.getElementById('tree-surface');
-
-        // NOTE: the contents of this line are validated in the python
-        // integration tests. If this line is changed somehow, the integration
-        // tests will need to be updated accordingly.
-        var isCommunityPlot = {{ is_community_plot | tojson }};
 
         var biom = null;
         if (isCommunityPlot) {
