@@ -220,6 +220,7 @@ define([], function() {
     	}
     	this.notify();
     }
+
     FieldSelectLayer.prototype.registerObserver = function(obs) {
     	this.observers.push(obs);
     }

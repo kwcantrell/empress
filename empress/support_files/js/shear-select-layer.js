@@ -23,7 +23,7 @@ define(["underscore", "FieldSelectLayer"], function(_, FieldSelectLayer) {
 	ShearSelectLayer.prototype.notify = function() {
 		var scope = this;
 		_.each(this.observers, function(obs) {
-			obs.shearSelectLayerUpdate(scope.fCol, scope.unselectedValues, scope.removeLayer);
+			obs.selectLayerUpdate(scope.fCol, scope.unselectedValues, scope.removeLayer);
 		});
 	}
 

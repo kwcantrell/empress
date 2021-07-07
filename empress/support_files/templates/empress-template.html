@@ -123,6 +123,7 @@
             'ShearSelectLayer': './js/shear-select-layer',
             'FeatureAlphaAdjuster': './js/feature-alpha-adjuster',
             'AlphaSelectLayer': './js/alpha-select-layer',
+            'MetadataSelectPanel': './js/metadata-select-panel',
         }
     });
 
@@ -272,7 +273,6 @@
           sPanel.populateTreeStats();
           statsButton.classList.remove("unpopulated");
         };
-        shearer.registerObserver(shearer);
         shearer.registerObserver(statsButton);
         
 
