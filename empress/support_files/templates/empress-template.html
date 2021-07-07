@@ -227,7 +227,9 @@
         var shearer = new Shearer(
           empress,
           empress.getFeatureMetadataCategories(),
+          document.getElementById("shear-div")
         );
+        shearer.initialize();
         shearer.registerObserver(sPanel);
 
         var alphaAdjuster = new FeatureAlphaAdjuster(

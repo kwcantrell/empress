@@ -12,24 +12,28 @@ define(["underscore", "util", "TreeController", "ShearSelectLayer"], function (
      * new 'select layer' panel will be added to the container.
      */
     function MetadataSelectPanel(empress, container, metadataColumns, SelectLayer) {
+        if (this.constructor === MetadataSelectPanel) {
+            throw Error("MetadataSelectPanel is an abstract class and cannot be instantiated.");
+        }
         this.empress = empress;
         this.layers = new Map();
         this.selectMap = new Map();
         this.metadataSelect = document.getElementById("shear-feature-select");
         this.addLayerButton = document.getElementById("shear-add-btn");
-        this.container = document.getElementById(
-            "shear-layer-container"
-        );
+        // this.container = document.getElementById(
+        //     "shear-layer-container"
+        // );
         this.observers = [];
         this.metadataColumns = metadataColumns;
         this.SelectLayer = SelectLayer;
-        console.log(this.SelectLayer)
 
         // this holds the 'Shear by...' select menu and the
         // 'Add shear filter' button
         this.selectOptionsContainer = document.getElementById(
             "shear-add-options"
         );
+
+        
     }
 
     MetadataSelectPanel.prototype.initialize = function() {
@@ -146,6 +150,7 @@ define(["underscore", "util", "TreeController", "ShearSelectLayer"], function (
      *                    some point be unregistered.
      */
     MetadataSelectPanel.prototype.registerObserver = function (obs) {
+        console.log(this)
         this.observers.push(obs);
     };
 
