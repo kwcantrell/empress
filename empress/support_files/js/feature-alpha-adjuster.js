@@ -1,80 +1,111 @@
-define(["AlphaSelectLayer"], function(AlphaSelectLayer) {
-	function FeatureAlphaAdjuster(empress, fCols) {
-		this.fCols = fCols;
-        this.alphaSelect = document.getElementById("alpha-feature-select");
-        this.addLayerButton = document.getElementById("alpha-add-btn");
-        this.container = document.getElementById(
-            "alpha-layer-container"
+define(["underscore", "AlphaSelectLayer", "MetadataSelectPanel"], function (
+    _,
+    AlphaSelectLayer,
+    MetadataSelectPanel
+) {
+    /**
+     * @class FeatureAlphaAdjuster
+     */
+    function FeatureAlphaAdjuster(empress, fCols, container) {
+        // call MetadataSelectPanel constructor
+        MetadataSelectPanel.call(
+            this,
+            empress,
+            container,
+            fCols,
+            AlphaSelectLayer
         );
 
-        // model properties
-        this.empress = empress;
-        this.layers = new Map();
-        this.alphaMap = new Map();
-        this.observers = [];
+        // update abstract labels to reflect FeatureAlphaAdjuster
+        this.metadataSelectLabel.innerText = "Adjust by...";
+        this.metadataSelectAddLabel.innerText = "Add layer";
 
-        // this holds the 'alpha by...' select menu and the
-        // 'Add alpha filter' button
-        this.alphaOptionsContainer = document.getElementById(
-            "alpha-add-options"
+        // note the following p are being added to front of
+        // this.metadataSelectContainer to place the before the select menu and
+        // add button. There are also being added in reverse order to preserve
+        // the original order
+
+        // add description of shear
+        var p = document.createElement("p");
+        p.classList.add("side-panel-notes");
+        p.innerText = "Adjust the darkness of tree branches using feature " +
+                      "metadtata";
+        this.metadataSelectContainer.prepend(p);
+
+        // create container for slider/slider label
+        // insert above the add layer button
+        var p = document.createElement("p")
+        this.addLayerButton.parentElement.insertAdjacentElement(
+            "beforebegin", p
         );
+        
+        // create slider label
+        var sliderId = "alpha-adjuster-slider";
+        var label = p.appendChild(
+            document.createElement("label")
+        );
+        label.setAttribute("for", sliderId);
+        label.innerText = "Set branch darkness"
+
+        // create slider
+        var div = p.appendChild(
+            document.createElement("div")
+        );
+        this.slider = div.appendChild(
+            document.createElement("input")
+        );
+        this.slider.setAttribute("type", "range");
+        this.slider.setAttribute("min", 1);
+        this.slider.setAttribute("max", 100);
+        this.slider.setAttribute("value", 50);
+        this.slider.id = "alpha-adjuster-slider";
+        var sliderTxt = div.appendChild(
+            document.createElement("label")
+        );
+        sliderTxt.innerText = "50%"
 
         var scope = this;
-        _.each(this.fCols, function (col) {
-            var opt = document.createElement("option");
-            opt.innerText = col;
-            opt.value = col;
-            scope.alphaSelect.appendChild(opt);
-        });
-
-        this.addLayerButton.onclick = function () {
-            scope.addLayer(scope.alphaSelect.value);
-            scope.alphaSelect[scope.alphaSelect.selectedIndex].remove();
-            // hide the 'alpha by...' menu and 'Add alpha filter' button
-            // if the 'Shear by...' menu is empty
-            if (scope.alphaSelect.options.length < 1) {
-                scope.shearOptionsContainer.classList.add("hidden");
-            }
-        };
-	}
-
-	FeatureAlphaAdjuster.prototype.addLayer = function(layerTitle) {
-		if (!this.layers.has(layerTitle)) {
-			var fVals = this.empress.getUniqueFeatureMetadataInfo(layerTitle, "tip")
-	            .sortedUniqueValues;
-	        var alphaSelectLayer = new AlphaSelectLayer(
-	            layerTitle,
-	            fVals,
-	            this.container,
-	            false
-	        );
-	        alphaSelectLayer.registerObserver(this);
-	        this.layers.set(layerTitle, alphaSelectLayer);
-		}
-	};
-
-	FeatureAlphaAdjuster.prototype.alphaSelectLayerUpdate = function(layerTitle, values, removeLayer) {
-        if (removeLayer) {
-            this.removeLayer(layerTitle);
-        } else {
-            this.alphaMap.set(layerTitle, values);
-            this.notify();
+        var setSliderLabel = () => {
+            sliderTxt.innerText = "" + scope.slider.value + "%";            
         }
-    };
+        this.slider.oninput = function() {
+            setSliderLabel();
+            scope.notify();
+        }
+
+        // set initial slide label text
+        setSliderLabel();
+
+    }
+
+    // inherit MetadataSelectPanel functions
+    FeatureAlphaAdjuster.prototype = Object.create(MetadataSelectPanel.prototype);
+    FeatureAlphaAdjuster.prototype.constructor = FeatureAlphaAdjuster;
 
     /**
-     * Removes a shear layer from a FeatureAlphaAdjuster
-     * @param{FeatureAlphaAdjuster} model The FeatureAlphaAdjuster to use
-     * @param{String} layer The name of layer to remove.
+     * Notifies all observers whenever the model has changed.
+     * 
+     * Implements an abstract function
      */
-    FeatureAlphaAdjuster.prototype.removeLayer = function (layerTitle) {
-        this.layers.delete(layerTitle);
-        this.alphaMap.delete(layerTitle);
-        this.notify();
+    FeatureAlphaAdjuster.prototype.notify = function () {
+        this.updateEmpressAlpha();
+        _.each(this.observers, function (obs) {
+            obs.shearUpdate();
+        });
     };
 
-    FeatureAlphaAdjuster.prototype.notify = function() {
-    	console.log(this.alphaMap)
+    FeatureAlphaAdjuster.prototype.updateEmpressAlpha = function() {
+        this.empress.resetAlphaStatus();
+        this.empress.setAlphaStatus(
+            this.getMetadataSelectValues(),
+            this.slider.value
+        );
+        this.empress.drawTree();
     }
-	return FeatureAlphaAdjuster;
+
+    FeatureAlphaAdjuster.prototype.shearUpdate = function() {
+        this.updateEmpressAlpha();
+    }
+
+    return FeatureAlphaAdjuster;
 });

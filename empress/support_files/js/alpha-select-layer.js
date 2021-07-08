@@ -11,7 +11,8 @@ define(["underscore", "FieldSelectLayer"], function(_, FieldSelectLayer) {
 			fCol,
 	        fVals,
 	        container,
-	        setAsFirstChild=true
+	        true,
+	        false
         );
 	}
 
@@ -23,7 +24,7 @@ define(["underscore", "FieldSelectLayer"], function(_, FieldSelectLayer) {
 	AlphaSelectLayer.prototype.notify = function() {
 		var scope = this;
 		_.each(this.observers, function(obs) {
-			obs.alphaSelectLayerUpdate(scope.fCol, scope.selectedValues, scope.removeLayer);
+			obs.selectLayerUpdate(scope.fCol, scope.selectedValues, scope.removeLayer);			
 		});
 	};
 

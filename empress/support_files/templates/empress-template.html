@@ -169,14 +169,19 @@
                     tabName: "Shear Tree",
                     container: document.getElementById("shear-div")
                 },
+                {
+                    tabName: "Adjust Tree Branch Darkness",
+                    container: document.getElementById(
+                        "adjust-tree-branch-darkness-div"
+                    )
+                },
             ];
-            var sidePanelTabs = [];
+            var sidePanelTabs = {};
             // wrap the sidepanel tabs in a EnableDisableSidePanelTab
             _.each(tabs, function(tabInfo) {
-                sidePanelTabs.push(
+                sidePanelTabs[tabInfo.tabName] = 
                     new EnableDisableSidePanelTab(tabInfo.tabName,
                         tabInfo.container, isEmpirePlot)
-                );
             });
             var animationTab = new EnableDisableAnimationTab(
                 document.getElementById("animation-div")
@@ -227,15 +232,18 @@
         var shearer = new Shearer(
           empress,
           empress.getFeatureMetadataCategories(),
-          document.getElementById("shear-div")
+          sidePanelTabs["Shear Tree"].enableContainer
         );
         shearer.initialize();
         shearer.registerObserver(sPanel);
 
         var alphaAdjuster = new FeatureAlphaAdjuster(
             empress,
-            empress.getFeatureMetadataCategories()
+            empress.getFeatureMetadataCategories(),
+            sidePanelTabs["Adjust Tree Branch Darkness"].enableContainer
         );
+        alphaAdjuster.initialize();
+        shearer.registerObserver(alphaAdjuster);
 
         // Only show the sample metadata coloring / animation panels if a
         // feature table and sample metadata file were provided

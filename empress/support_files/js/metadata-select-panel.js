@@ -10,6 +10,8 @@ define(["underscore", "util", "TreeController", "ShearSelectLayer"], function (
      * A metadata select panel. This class will add a 'select' menu and an 'add
      * layer' button to 'container'. Whenever the add button is clicked on, a
      * new 'select layer' panel will be added to the container.
+     * 
+     * Abstract functions: notify
      */
     function MetadataSelectPanel(empress, container, metadataColumns, SelectLayer) {
         if (this.constructor === MetadataSelectPanel) {
@@ -18,22 +20,66 @@ define(["underscore", "util", "TreeController", "ShearSelectLayer"], function (
         this.empress = empress;
         this.layers = new Map();
         this.selectMap = new Map();
-        this.metadataSelect = document.getElementById("shear-feature-select");
-        this.addLayerButton = document.getElementById("shear-add-btn");
-        // this.container = document.getElementById(
-        //     "shear-layer-container"
-        // );
+        // this.metadataSelectContainer = document.getElementById("shear-div");
         this.observers = [];
         this.metadataColumns = metadataColumns;
         this.SelectLayer = SelectLayer;
+        this.metadataSelectContainer = container;
 
-        // this holds the 'Shear by...' select menu and the
-        // 'Add shear filter' button
-        this.selectOptionsContainer = document.getElementById(
-            "shear-add-options"
+        // create div to hold select menu and add button
+        this.selectOptionsContainer = this.metadataSelectContainer.appendChild(
+            document.createElement("div")
         );
 
-        
+        // create container for select menu/label
+        var p = this.selectOptionsContainer.appendChild(
+            document.createElement("p")
+        );
+
+        // create label for select menu
+        var metadataSelectId = "metadata-select-panel-select-" +
+            util.getUniqueNum();
+        this.metadataSelectLabel = p.appendChild(
+            document.createElement("label")
+        );
+        this.metadataSelectLabel.setAttribute("for", metadataSelectId);
+        this.metadataSelectLabel.innerText = "Abstract label please update!"
+
+        // create select menu
+        var label = p.appendChild(
+            document.createElement("label")
+        );
+        label.classList.add("select-container");
+        this.metadataSelect = label.appendChild(
+            document.createElement("select")
+        );
+        this.metadataSelect.id = metadataSelectId;
+
+        // create container for add layer button/label
+        p = this.selectOptionsContainer.appendChild(
+            document.createElement("p")
+        );
+
+        // create label for add layer button
+        var metadataSelectAddId = "metadata-select-panel-add-button" +
+            util.getUniqueNum();
+        this.metadataSelectAddLabel = p.appendChild(
+            document.createElement("label")
+        );
+        this.metadataSelectAddLabel.setAttribute("for", metadataSelectAddId);
+        this.metadataSelectAddLabel.innerText = "Abstract label please update!"
+
+        // create add layer button
+        this.addLayerButton = p.appendChild(
+            document.createElement("button")
+        );
+        this.addLayerButton.id = metadataSelectAddId;
+        this.addLayerButton.innerText = "+";
+
+        // add shear layer div
+        this.selectLayerContainer = this.metadataSelectContainer.appendChild(
+            document.createElement("div")
+        );
     }
 
     MetadataSelectPanel.prototype.initialize = function() {
@@ -71,7 +117,7 @@ define(["underscore", "util", "TreeController", "ShearSelectLayer"], function (
         var selectLayer = new this.SelectLayer(
             layer,
             fVals,
-            this.container,
+            this.selectLayerContainer,
             false
         );
         selectLayer.registerObserver(this);
@@ -131,14 +177,10 @@ define(["underscore", "util", "TreeController", "ShearSelectLayer"], function (
 
     /**
      * Notifies all observers whenever the model has changed.
+     * 
+     * @abstract function
      */
-    MetadataSelectPanel.prototype.notify = function () {
-        this.empress.shear(this.selectMap);
-        this.empress.drawTree();
-        _.each(this.observers, function (obs) {
-            obs.shearUpdate();
-        });
-    };
+    MetadataSelectPanel.prototype.notify = function () {};
 
     /**
      * Registers an observer to the model which will then be notified whenever
@@ -150,7 +192,6 @@ define(["underscore", "util", "TreeController", "ShearSelectLayer"], function (
      *                    some point be unregistered.
      */
     MetadataSelectPanel.prototype.registerObserver = function (obs) {
-        console.log(this)
         this.observers.push(obs);
     };
 
@@ -184,6 +225,25 @@ define(["underscore", "util", "TreeController", "ShearSelectLayer"], function (
         this.selectMap.delete(layer);
         this.notify();
     };
+
+    /**
+     *
+     */
+    MetadataSelectPanel.prototype.getMetadataSelectValues = function () {
+        var nodes = new Set();
+        var scope = this;
+        this.selectMap.forEach(function (values, cat) {
+            var fmInfo = scope.empress.getUniqueFeatureMetadataInfo(cat, "tip");
+            var uniqueValueToFeatures = fmInfo.uniqueValueToFeatures;
+            _.each(values, function (val) {
+                var obs = uniqueValueToFeatures[val];
+                for (var node of obs) {
+                    nodes.add(node);
+                }
+            });
+        });
+        return nodes;
+    }
 
     return MetadataSelectPanel;
 });

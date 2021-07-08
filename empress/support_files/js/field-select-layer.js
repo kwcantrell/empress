@@ -1,22 +1,10 @@
-define([], function() {
-	/**
-     * Stores the next unique number for the removeLayer button is ShearLayer
-     */
-    var UniqueRemoveNum = 0;
-
-    /**
-     * Returns a unique number to use for the id of the removeLayer button.
-     */
-    function getUniqueNum() {
-        return UniqueRemoveNum++;
-    }
-
-
+define(["util"], function(util) {
 	function FieldSelectLayer(
 		fCol,
         fVals,
         container,
-        setAsFirstChild=true
+        setAsFirstChild=true,
+        defaultCheckStatus=true
     ) {
     	// make abstract class
     	if (this.constructor === FieldSelectLayer) {
@@ -102,7 +90,7 @@ define([], function() {
             var input = document.createElement("input");
             input.id = id;
             input.setAttribute("type", "checkbox");
-            input.checked = true;
+            input.checked = defaultCheckStatus;
             input.onchange = function () {
                 // chkBxClickFunction(!input.checked, scope.fCol, val);
                 scope.addRemoveItem(input.checked, val);
@@ -144,7 +132,7 @@ define([], function() {
 
         // create remove button
         var removeButton = document.createElement("button");
-        removeButton.id = "shear-layer-" + getUniqueNum() + "-delete";
+        removeButton.id = "shear-layer-" + util.getUniqueNum() + "-delete";
         removeButton.innerText = "-";
         removeButton.onclick = function () {
             // removeClickFunction(scope.fCol);

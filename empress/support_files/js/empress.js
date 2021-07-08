@@ -90,6 +90,7 @@ define([
          * The default color of the tree
          */
         this.DEFAULT_COLOR = Colorer.rgbToFloat([64, 64, 64]);
+        this.DEFAULT_ALPHA_VALUE = 100;
 
         /**
          * @type {BPTree}
@@ -108,24 +109,25 @@ define([
             color: 0,
             isColored: 1,
             visible: 2,
+            alphaValue: 3,
             // unrooted layout
-            x2: 3,
-            y2: 4,
+            x2: 4,
+            y2: 5,
             // rectangular layout
-            xr: 3,
-            yr: 4,
-            highestchildyr: 5,
-            lowestchildyr: 6,
+            xr: 4,
+            yr: 5,
+            highestchildyr: 6,
+            lowestchildyr: 7,
             // circular layout
-            xc0: 3,
-            yc0: 4,
-            xc1: 5,
-            yc1: 6,
-            angle: 7,
-            arcx0: 8,
-            arcy0: 9,
-            arcstartangle: 10,
-            arcendangle: 11,
+            xc0: 4,
+            yc0: 5,
+            xc1: 6,
+            yc1: 7,
+            angle: 8,
+            arcx0: 9,
+            arcy0: 10,
+            arcstartangle: 11,
+            arcendangle: 12,
         };
 
         /**
@@ -133,7 +135,7 @@ define([
          * @type {Number}
          * @private
          */
-        this._numOfNonLayoutParams = 3;
+        this._numOfNonLayoutParams = 4;
 
         /**
          * @type {Array}
@@ -144,7 +146,7 @@ define([
          */
         this._treeData = new Array(this._tree.size + 1);
 
-        // set default color/visible status for each node
+        // set default color/visible/alphaValue status for each node
         // Note: currently empress tree uses 1-based index since the bp-tree
         //       bp-tree.js is based off of used 1-based index.
         for (var i = 1; i <= this._tree.size; i++) {
@@ -156,6 +158,11 @@ define([
             );
             this._treeData[i].splice(this._tdToInd.isColored, 0, false);
             this._treeData[i].splice(this._tdToInd.visible, 0, true);
+            this._treeData[i].splice(
+                this._tdToInd.alphaValue,
+                0,
+                this.DEFAULT_ALPHA_VALUE
+            );
         }
 
         /**
@@ -647,22 +654,19 @@ define([
         if (this._currentLayout === "Rectangular") {
             addPoint(
                 this.getX(tree.size),
-                this.getNodeInfo(tree.size, "lowestchildyr")
+                this.getNodeInfo(tree.size, "lowestchildyr"),
             );
             addPoint(
                 this.getX(tree.size),
-                this.getNodeInfo(tree.size, "highestchildyr")
+                this.getNodeInfo(tree.size, "highestchildyr"),
             );
         }
         // iterate through the tree in postorder, skip root
         for (var node of this._tree.postorderTraversal()) {
             // name of current node
-            // var node = this._treeData[node];
             var parent = tree.postorder(
                 tree.parent(tree.postorderselect(node))
             );
-            // parent = this._treeData[parent];
-
             if (!this.getNodeInfo(node, "visible")) {
                 continue;
             }
@@ -684,19 +688,25 @@ define([
                  * vertical line.
                  */
                 // 1. Draw horizontal line (we're already skipping the root)
-                addPoint(this.getX(parent), this.getY(node));
-                addPoint(this.getX(node), this.getY(node));
+                addPoint(
+                    this.getX(parent),
+                    this.getY(node),
+                );
+                addPoint(
+                    this.getX(node),
+                    this.getY(node),
+                );
                 // 2. Draw vertical line, if this is an internal node
                 if (this.getNodeInfo(node, "lowestchildyr") !== undefined) {
                     // skip if node is root of collapsed clade
                     if (this._collapsedClades.hasOwnProperty(node)) continue;
                     addPoint(
                         this.getX(node),
-                        this.getNodeInfo(node, "highestchildyr")
+                        this.getNodeInfo(node, "highestchildyr"),
                     );
                     addPoint(
                         this.getX(node),
-                        this.getNodeInfo(node, "lowestchildyr")
+                        this.getNodeInfo(node, "lowestchildyr"),
                     );
                 }
             } else if (this._currentLayout === "Circular") {
@@ -713,9 +723,12 @@ define([
                 // this.getY() for these coordinates.
                 addPoint(
                     this.getNodeInfo(node, "xc0"),
-                    this.getNodeInfo(node, "yc0")
+                    this.getNodeInfo(node, "yc0"),
                 );
-                addPoint(this.getX(node), this.getY(node));
+                addPoint(
+                    this.getX(node),
+                    this.getY(node),
+                );
                 // 2. Draw arc, if this is an internal node (note again that
                 // we're skipping the root)
                 if (
@@ -742,7 +755,10 @@ define([
                         var y =
                             sX * Math.sin(line * sampleAngle) +
                             sY * Math.cos(line * sampleAngle);
-                        addPoint(x, y);
+                        addPoint(
+                            x,
+                            y,
+                        );
 
                         x =
                             sX * Math.cos((line + 1) * sampleAngle) -
@@ -750,12 +766,21 @@ define([
                         y =
                             sX * Math.sin((line + 1) * sampleAngle) +
                             sY * Math.cos((line + 1) * sampleAngle);
-                        addPoint(x, y);
+                        addPoint(
+                            x,
+                            y,
+                        );
                     }
                 }
             } else {
-                addPoint(this.getX(parent), this.getY(parent));
-                addPoint(this.getX(node), this.getY(node));
+                addPoint(
+                    this.getX(parent),
+                    this.getY(parent),
+                );
+                addPoint(
+                    this.getX(node),
+                    this.getY(node),
+                );
             }
         }
         return new Float32Array(coords);
@@ -766,8 +791,9 @@ define([
 
         var coords = [];
         var color;
+        var alphaValue;
         var addPoint = function () {
-            coords.push(color, color);
+            coords.push(color, alphaValue, color, alphaValue);
         };
 
         /* Draw a vertical line, if we're in rectangular layout mode. Note that
@@ -781,6 +807,7 @@ define([
          */
         if (this._currentLayout === "Rectangular") {
             color = this.getNodeInfo(tree.size, "color");
+            alphaValue = this.getNodeInfo(node, "alphaValue");
             addPoint();
         }
         // iterate through the tree in postorder, skip root
@@ -791,6 +818,8 @@ define([
 
             // branch color
             color = this.getNodeInfo(node, "color");
+            alphaValue = this.getNodeInfo(node, "alphaValue");
+            
 
             if (this._currentLayout === "Rectangular") {
                 /* Nodes in the rectangular layout can have up to two "parts":
@@ -2663,6 +2692,7 @@ define([
             this.setNodeInfo(node, "color", this.DEFAULT_COLOR);
             this.setNodeInfo(node, "isColored", false);
             this.setNodeInfo(node, "visible", true);
+            this.setNodeInfo(node, "alphaValue", this.DEFAULT_ALPHA_VALUE)
         }
         this._collapsedClades = {};
         this._dontCollapse = new Set();
@@ -3764,20 +3794,8 @@ define([
     /**
      * This will shear/unshear
      */
-    Empress.prototype.shear = function (shearMap) {
-        this._tree.unshear();
+    Empress.prototype.shear = function (removeNodes) {
         var scope = this;
-        var removeNodes = new Set();
-        shearMap.forEach(function (values, cat) {
-            var fmInfo = scope.getUniqueFeatureMetadataInfo(cat, "tip");
-            var uniqueValueToFeatures = fmInfo.uniqueValueToFeatures;
-            _.each(values, function (val) {
-                var obs = uniqueValueToFeatures[val];
-                for (var node of obs) {
-                    removeNodes.add(node);
-                }
-            });
-        });
 
         if (this.isCommunityPlot) {
             this._biom.setIgnoreNodes(removeNodes);
@@ -3791,6 +3809,25 @@ define([
 
         this.redrawBarPlotsToMatchLayout();
     };
+
+    Empress.prototype.resetAlphaStatus = function() {
+        for (var node = 1; node <= this._tree.size; node++) {
+            this.setNodeInfo(node, "alphaValue", this.DEFAULT_ALPHA_VALUE);
+        }
+    };
+
+    Empress.prototype.setAlphaStatus = function(tips, alphaValue) {
+        if (tips.size <= 0) {
+            this._drawer.loadTreeCoordsBuff(this.getTreeCoords());
+            return;
+        }
+        var obs = {nodes: tips}
+        obs = this._projectObservations(obs, false);
+        nodes = obs.nodes;
+        for (var node of nodes) {
+            this.setNodeInfo(node, "alphaValue", alphaValue);
+        }
+    };    
 
     return Empress;
 });

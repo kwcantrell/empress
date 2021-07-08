@@ -298,6 +298,18 @@ define(["underscore", "toastr"], function (_, toastr) {
         }
     }
 
+    /**
+     * Stores the next unique number for the removeLayer button is ShearLayer
+     */
+    var UniqueRemoveNum = 0;
+
+    /**
+     * Returns a unique number to use for the id of the removeLayer button.
+     */
+    function getUniqueNum() {
+        return UniqueRemoveNum++;
+    }
+
     return {
         keepUniqueKeys: keepUniqueKeys,
         naturalSort: naturalSort,
@@ -307,5 +319,6 @@ define(["underscore", "toastr"], function (_, toastr) {
         toastMsg: toastMsg,
         assignBarplotLengths: assignBarplotLengths,
         removeEmptyArrayKeys: removeEmptyArrayKeys,
+        getUniqueNum: getUniqueNum,
     };
 });

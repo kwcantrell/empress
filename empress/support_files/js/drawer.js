@@ -11,7 +11,9 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         "attribute vec2 vertPosition;",
         "uniform mat4 mvpMat;",
         "attribute float color;",
+        "attribute float alphaValue;",
         "varying vec3 c;",
+        "varying float a;",
         "uniform float pointSize;",
         "",
         "vec3 unpackColor(float f) {",
@@ -26,6 +28,7 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         "void main()",
         "{",
         "  c = unpackColor(color);",
+        "  a = alphaValue;",
         "  gl_Position = mvpMat * vec4(vertPosition, 0.0, 1.0);",
         "  gl_PointSize = pointSize;",
         "}",
@@ -33,17 +36,17 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
     var fragShaderTxt = [
         "precision mediump float;",
         "varying vec3 c;",
+        "varying float a;",
         "uniform int isSingle;",
         "",
-        "void main()",
-        "{",
-        "float r = 0.0;",
-        "vec2 cxy = 2.0 * gl_PointCoord - 1.0;",
-        "r = dot(cxy, cxy);",
-        "if (r > 1.0 && isSingle == 1) {",
-        "   discard;",
-        "}",
-        "  gl_FragColor = vec4(c,1);",
+        "void main() {",
+        "  float r = 0.0;",
+        "  vec2 cxy = 2.0 * gl_PointCoord - 1.0;",
+        "  r = dot(cxy, cxy);",
+        "  if (r > 1.0 && isSingle == 1) {",
+        "    discard;",
+        "  }",
+        "  gl_FragColor = vec4(c, a / 100.0);",
         "}",
     ].join("\n");
 
@@ -88,7 +91,7 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         this.SELECTED_NODE_CIRCLE_DIAMETER = 9.0;
 
         // the valid buffer types used in bindBuffer()
-        this.BUFF_TYPES = [1, 2, 3];
+        this.BUFF_TYPES = [1, 2, 3, 4];
     }
 
     /**
@@ -123,7 +126,14 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         s.vertPosition = c.getAttribLocation(s, "vertPosition");
         c.enableVertexAttribArray(s.vertPosition);
         s.color = c.getAttribLocation(s, "color");
+        console.log("color", s.color);
         c.enableVertexAttribArray(s.color);
+
+        s.alphaValue = c.getAttribLocation(s, "alphaValue");
+        c.enableVertexAttribArray(s.alphaValue);
+        console.log("alphaValue", s.alphaValue);
+
+        
 
         // store references to the matrix uniforms
         s.mvpMat = c.getUniformLocation(s, "mvpMat");
@@ -262,6 +272,8 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         // defines constants for a vertex. A vertex is the form [x, y, rgb]
         const COORD_OFFSET = 0;
         const COLOR_SIZE = 1;
+        const ALPHA_SIZE = 1;
+        const ALPHA_OFFSET = 1;
         const COLOR_OFFSET = buffType == 1 ? 2 : 0;
 
         var c = this.contex_;
@@ -269,7 +281,6 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
 
         // tell webGL which buffer to use
         c.bindBuffer(c.ARRAY_BUFFER, buffer);
-
         if (buffType == 1 || buffType == 2) {
             c.vertexAttribPointer(
                 s.vertPosition,
@@ -277,11 +288,30 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
                 c.FLOAT,
                 c.FALSE,
                 vertSize * Float32Array.BYTES_PER_ELEMENT,
-                COORD_OFFSET
+                COORD_OFFSET * Float32Array.BYTES_PER_ELEMENT
             );
         }
 
-        if (buffType == 1 || buffType == 3) {
+        if (buffType == 3) {
+            c.vertexAttribPointer(
+                s.color,
+                COLOR_SIZE,
+                c.FLOAT,
+                c.FALSE,
+                vertSize * Float32Array.BYTES_PER_ELEMENT,
+                COLOR_OFFSET * Float32Array.BYTES_PER_ELEMENT
+            );
+
+            c.vertexAttribPointer(
+                s.alphaValue,
+                ALPHA_SIZE,
+                c.FLOAT,
+                c.FALSE,
+                vertSize * Float32Array.BYTES_PER_ELEMENT,
+                ALPHA_OFFSET * Float32Array.BYTES_PER_ELEMENT
+            );
+        }
+        if (buffType == 1) {
             c.vertexAttribPointer(
                 s.color,
                 COLOR_SIZE,
@@ -301,6 +331,7 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
     Drawer.prototype.loadTreeCoordsBuff = function (data) {
         data = new Float32Array(data);
         this.treeCoordSize = data.length / 2;
+        console.log(this.treeCoordSize, "coord")
         this.fillBufferData_(this.sProg_.treeCoordBuff, data);
     };
 
@@ -401,27 +432,27 @@ define(["underscore", "glMatrix", "Camera", "Colorer"], function (
         c.uniform1i(s.isSingle, 1);
         // draw tree node circles, if requested
         c.uniform1f(s.pointSize, this.NODE_CIRCLE_DIAMETER);
-        this.bindBuffer(s.nodeVertBuff, 1, 3);
-        c.drawArrays(c.POINTS, 0, this.nodeSize);
+        // this.bindBuffer(s.nodeVertBuff, 1, 3);
+        // c.drawArrays(c.POINTS, 0, this.nodeSize);
 
         // draw selected node
         c.uniform1f(s.pointSize, this.SELECTED_NODE_CIRCLE_DIAMETER);
-        this.bindBuffer(s.selectedNodeBuff, 1, 3);
-        c.drawArrays(gl.POINTS, 0, this.selectedNodeSize);
+        // this.bindBuffer(s.selectedNodeBuff, 1, 3);
+        // c.drawArrays(gl.POINTS, 0, this.selectedNodeSize);
 
         c.uniform1i(s.isSingle, 0);
         this.bindBuffer(s.treeCoordBuff, 2, 2);
-        this.bindBuffer(s.treeColorBuff, 3, 1);
+        this.bindBuffer(s.treeColorBuff, 3, 2);
         c.drawArrays(c.LINES, 0, this.treeCoordSize);
 
-        this.bindBuffer(s.thickNodeBuff, 1, 3);
-        c.drawArrays(c.TRIANGLES, 0, this.thickNodeSize);
+        // this.bindBuffer(s.thickNodeBuff, 1, 3);
+        // c.drawArrays(c.TRIANGLES, 0, this.thickNodeSize);
 
-        this.bindBuffer(s.barplotBuff, 1, 3);
-        c.drawArrays(c.TRIANGLES, 0, this.barplotSize);
+        // this.bindBuffer(s.barplotBuff, 1, 3);
+        // c.drawArrays(c.TRIANGLES, 0, this.barplotSize);
 
-        this.bindBuffer(s.cladeBuff, 1, 3);
-        c.drawArrays(c.TRIANGLES, 0, this.cladeVertSize);
+        // this.bindBuffer(s.cladeBuff, 1, 3);
+        // c.drawArrays(c.TRIANGLES, 0, this.cladeVertSize);
     };
 
     /**

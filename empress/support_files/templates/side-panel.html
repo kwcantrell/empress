@@ -123,9 +123,9 @@
 
 <!-- Alpha options -->
 <button id="AlphaOpenButton" class="side-header collapsible needs-feature-metadata">
-    Adjust Tree Alpha Setting</button>
-<div class="side-content control hidden" id="alpha-div">
-  <p class="side-panel-notes">
+    Adjust Tree Branch Darkness</button>
+<div class="side-content control hidden" id="adjust-tree-branch-darkness-div">
+  <!-- <p class="side-panel-notes">
     Adjust the alpha setting for the tree branches using feature metadata.
   </p>
   <div id="alpha-add-options">
@@ -141,7 +141,7 @@
     </p>
   </div>
   <div id="alpha-layer-container">
-  </div>
+  </div> -->
 </div>
 
 <!-- Layout methods and options; shamelessly copied from above. -->
@@ -284,33 +284,6 @@
 <button id="shearOpenButton" class="side-header collapsible needs-feature-metadata">
     Shear Tree</button>
 <div class="side-content control hidden" id="shear-div">
-  <p class="side-panel-notes">
-     Shear the tree to tips with certain feature metadata values.
-  </p>
-  <p class="side-panel-notes">
-    <span style="font-weight: bold;">Warning:</span> By design, shearing
-    will change the topology of the tree: the resulting visualization may be
-    misleading, especially if shown without context.
-  </p>
-  <p class="side-panel-notes">
-    <span style="font-weight: bold;">Performance Note:</span> If shearing is
-    taking a long time for your dataset, you may want to try disabling tree
-    coloring and barplots before shearing.
-  </p>
-  <div id="shear-add-options">
-    <p>
-      <label for="shear-feature-select">Shear by...</label>
-      <label class="select-container">
-        <select id="shear-feature-select"></select>
-      </label>
-    </p>
-    <p>
-      <label for="shear-add-btn">Add shear filter</label>
-      <button id="shear-add-btn">+</button>
-    </p>
-  </div>
-  <div id="shear-layer-container">
-  </div>
 </div>
 
 <!-- animate Options -->
